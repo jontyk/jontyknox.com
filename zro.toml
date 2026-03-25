@@ -1,0 +1,7 @@
+[project]
+name = "jonty-knox"
+entrypoint = "src/index"
+
+[index.allow]
+"fs.read" = ["public", "public/**"]
+serve = ["*"]

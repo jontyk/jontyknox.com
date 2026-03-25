@@ -1,0 +1,231 @@
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 240 5% 96%;
+  --card-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --border: 240 6% 80%;
+  --selection: 163 95% 78%;
+  --link: 172 39% 50%;
+  --link-hover: 277 59% 55%;
+}
+
+[data-theme="dark"] {
+  --background: 0 0% 0%;
+  --foreground: 210 40% 98%;
+  --card: 0 0% 4%;
+  --card-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --border: 0 0% 15%;
+  --selection: 320 75% 55%;
+  --link: 239 66% 84%;
+  --link-hover: 316 73% 84%;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/inter-regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/inter-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+html {
+  opacity: 0;
+}
+
+html[data-theme="dark"],
+html[data-theme="light"] {
+  opacity: initial;
+}
+
+.page-wrapper {
+  margin: 0 auto;
+  max-width: 700px;
+  padding: 5dvh 16px;
+  position: relative;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-size-adjust: 100%;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+  transition: color 300ms ease;
+}
+
+.page-wrapper h1 {
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.page-wrapper h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.page-wrapper header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+li {
+  padding: 4px 0;
+}
+
+a {
+  color: hsl(var(--link));
+  display: inline-flex;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 200ms ease;
+}
+
+a:hover {
+  color: hsl(var(--link-hover));
+}
+
+img {
+  width: 60px;
+  height: 60px;
+  border-radius: 4px;
+}
+
+header img {
+  width: 60px;
+  height: 60px;
+  border-radius: 4px;
+}
+
+.gridImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  object-position: center right;
+}
+
+h1,
+h2,
+ul {
+  margin: 0;
+}
+
+figure {
+  margin: 0;
+}
+
+figcaption {
+  margin-top: 2px;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+.subheading {
+  font-size: 16px;
+  font-weight: 400;
+  padding-bottom: 12px;
+}
+
+.theme-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: hsl(var(--link));
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  transition: color 200ms ease;
+  width: 28px;
+}
+
+.theme-toggle:hover {
+  color: hsl(var(--link-hover));
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+::selection {
+  background-color: hsl(var(--selection));
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  column-gap: 12px;
+  row-gap: 16px;
+}
+
+.grid a {
+  width: 100%;
+}
+
+blockquote {
+  font-style: italic;
+  margin: 12px 0 12px 2px;
+  padding-left: 20px;
+  line-height: 1.75;
+  opacity: 0.8;
+  position: relative;
+}
+
+blockquote::before {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 4px;
+  background-color: hsl(var(--border));
+  position: absolute;
+  left: 0;
+  border-radius: 8px;
+}
+
+blockquote span {
+  padding-bottom: 0;
+}
+
+@media screen and (max-width: 500px) {
+  .gridImage {
+    height: 100%;
+  }
+}
