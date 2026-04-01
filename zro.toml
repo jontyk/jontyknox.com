@@ -2,6 +2,9 @@
 name = "jonty-knox"
 entrypoint = "src/index"
 
+[docs.allow]
+"fs.read" = ["content/"]
+
 [index.allow]
-"fs.read" = ["public", "public/**"]
+"fs.read" = ["public", "public/**", "content/"]
 serve = ["*"]

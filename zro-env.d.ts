@@ -3,10 +3,16 @@ interface FsError {
   message: string;
 }
 
+interface MarkdownDocument {
+  meta: Record<string, unknown>;
+  html: string;
+}
+
 interface FileReader extends PromiseLike<Result<string, FsError>> {
   text(): Promise<Result<string, FsError>>;
   bytes(): Promise<Result<Uint8Array, FsError>>;
   json<T = unknown>(): Promise<Result<T, FsError>>;
+  md(): Promise<Result<MarkdownDocument, FsError>>;
   toml<T = unknown>(): Promise<Result<T, FsError>>;
 }
 
@@ -55,3 +61,28 @@ declare const zro: {
     exists(path: string): Promise<Result<boolean, FsError>>;
   };
 };
+
+declare module "zro:docs" {
+  export type Doc = {
+    slug: string;
+    title: string;
+    category: string;
+    excerpt?: string;
+    publishedAt?: string;
+    html: string;
+  };
+
+  export type NavSection = {
+    title: string;
+    items: Array<{ title: string; path: string }>;
+  };
+
+  export type DocError =
+    | { kind: "NotFound"; slug: string }
+    | { kind: "ParseError"; message: string }
+    | { kind: "IOError"; message: string };
+
+  export function getDoc(slug: string): Promise<Result<Doc, DocError>>;
+  export function listDocs(): Promise<Result<Doc[], DocError>>;
+  export function getNavigation(): Promise<Result<NavSection[], DocError>>;
+}

@@ -1,3 +1,11 @@
+import type { Doc, NavSection } from "../docs/mod.ts";
+import { getDoc, getNavigation, listDocs } from "../docs/mod.ts";
+import {
+  renderBlogIndexPage,
+  renderBlogNotFoundPage,
+  renderBlogPostPage,
+} from "./blog.ts";
+
 const contentTypes: Record<string, string> = {
   css: "text/css; charset=utf-8",
   ico: "image/x-icon",
@@ -10,6 +18,21 @@ const contentTypes: Record<string, string> = {
   webp: "image/webp",
   woff2: "font/woff2",
 };
+
+type BlogShellAssets = {
+  baseCss: string;
+  blogCss: string;
+  portraitSrc: string;
+};
+
+function normalizePathname(pathname: string): string {
+  if (pathname === "/") {
+    return pathname;
+  }
+
+  const normalized = pathname.replace(/\/+$/, "");
+  return normalized || "/";
+}
 
 async function readTextFile(path: string): Promise<string> {
   const file = await zro.fs.read(path).text();
@@ -52,6 +75,56 @@ async function readAssetDataUrl(path: string): Promise<string> {
     Ok: (bytes) => `data:${mimeType};base64,${encodeBase64(bytes)}`,
     Err: () => "",
   });
+}
+
+function htmlResponse(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+function fallbackNavigation(docs: Doc[]): NavSection[] {
+  if (docs.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      title: "Posts",
+      items: docs.map((doc) => ({
+        title: doc.title,
+        path: `/blog/${doc.slug}`,
+      })),
+    },
+  ];
+}
+
+function resolveNavigation(
+  navResult: Result<NavSection[], unknown>,
+  docs: Doc[],
+): NavSection[] {
+  return match(navResult, {
+    Ok: (nav) => nav,
+    Err: () => fallbackNavigation(docs),
+  });
+}
+
+async function loadBlogShellAssets(): Promise<BlogShellAssets> {
+  const [baseCss, blogCss, portraitSrc] = await Promise.all([
+    readTextFile("public/styles/base.css"),
+    readTextFile("public/styles/blog.css"),
+    readAssetDataUrl("public/images/jonty-knox.jpg"),
+  ]);
+
+  return {
+    baseCss,
+    blogCss,
+    portraitSrc,
+  };
 }
 
 async function renderPage(): Promise<string> {
@@ -266,6 +339,7 @@ async function renderPage(): Promise<string> {
         <section>
           <h2>Links</h2>
           <ul class="list-disc pl-6">
+            <li><a href="/blog">Blog</a></li>
             <li><a href="https://x.com/jontyknox" target="_blank" rel="noreferrer">Twitter/X</a></li>
             <li><a href="https://www.linkedin.com/in/jontyknox/" target="_blank" rel="noreferrer">LinkedIn</a></li>
             <li><a href="https://github.com/jontyk" target="_blank" rel="noreferrer">Github</a></li>
@@ -328,20 +402,67 @@ async function serveStaticAsset(pathname: string): Promise<Response | null> {
   });
 }
 
+async function routeBlogIndex(): Promise<Response> {
+  const [docsResult, navResult, assets] = await Promise.all([
+    listDocs(),
+    getNavigation(),
+    loadBlogShellAssets(),
+  ]);
+
+  const docs = match(docsResult, {
+    Ok: (items) => items,
+    Err: () => [] as Doc[],
+  });
+  const nav = resolveNavigation(navResult, docs);
+
+  return htmlResponse(renderBlogIndexPage(docs, nav, assets));
+}
+
+async function routeBlogPost(slug: string): Promise<Response> {
+  const [docResult, docsResult, navResult, assets] = await Promise.all([
+    getDoc(slug),
+    listDocs(),
+    getNavigation(),
+    loadBlogShellAssets(),
+  ]);
+
+  const docs = match(docsResult, {
+    Ok: (items) => items,
+    Err: () => [] as Doc[],
+  });
+  const nav = resolveNavigation(navResult, docs);
+
+  return match(docResult, {
+    Ok: (doc) => htmlResponse(renderBlogPostPage(doc, nav, assets)),
+    Err: (err) => {
+      if (err.kind === "NotFound") {
+        return htmlResponse(renderBlogNotFoundPage(assets), 404);
+      }
+
+      return new Response("Server error", { status: 500 });
+    },
+  });
+}
+
 zro.serve({
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
+    const pathname = normalizePathname(url.pathname);
 
-    if (url.pathname === "/" || url.pathname === "") {
-      return new Response(await renderPage(), {
-        headers: {
-          "cache-control": "no-store",
-          "content-type": "text/html; charset=utf-8",
-        },
-      });
+    if (pathname === "/") {
+      return htmlResponse(await renderPage());
     }
 
-    const asset = await serveStaticAsset(url.pathname);
+    if (pathname === "/blog") {
+      return routeBlogIndex();
+    }
+
+    if (pathname.startsWith("/blog/")) {
+      const slug = pathname.replace(/^\/blog\//, "");
+      return routeBlogPost(slug);
+    }
+
+    const asset = await serveStaticAsset(pathname);
 
     if (asset) {
       return asset;
