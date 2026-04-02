@@ -222,8 +222,8 @@ async function renderPage(): Promise<string> {
               Co-founder of <a href="https://customeros.ai" target="_blank" rel="noreferrer">CustomerOS</a>
             </li>
             <li>
-              Building AI sales, marketing and customer success agents with
-              <a href="https://mateocafe.com/" target="_blank" rel="noreferrer"> Matt Brown</a>
+              Building AI sales, marketing and customer success agents with 
+              <a href="https://mateocafe.com/" target="_blank" rel="noreferrer">Matt Brown</a>
             </li>
             <li>
               Y Combinator graduate
