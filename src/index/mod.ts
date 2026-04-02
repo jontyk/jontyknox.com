@@ -1,10 +1,6 @@
 import type { Doc, NavSection } from "../docs/mod.ts";
 import { getDoc, getNavigation, listDocs } from "../docs/mod.ts";
-import {
-  renderBlogIndexPage,
-  renderBlogNotFoundPage,
-  renderBlogPostPage,
-} from "./blog.ts";
+import { renderBlogIndexPage, renderBlogNotFoundPage, renderBlogPostPage } from "./blog.ts";
 
 const contentTypes: Record<string, string> = {
   css: "text/css; charset=utf-8",
@@ -67,6 +63,24 @@ function contentTypeFor(path: string): string {
   return contentTypes[ext] ?? "application/octet-stream";
 }
 
+function resolvePublicAssetPath(pathname: string): string | null {
+  const relativePath = pathname.replace(/^\/+/, "");
+
+  if (!relativePath || relativePath.includes("..") || relativePath.includes("\\")) {
+    return null;
+  }
+
+  const blogScopedAsset = relativePath.match(
+    /^blog\/(favicon\.ico|favicon-16x16\.png|favicon-32x32\.png|apple-touch-icon\.png|android-chrome-192x192\.png|android-chrome-512x512\.png|site\.webmanifest)$/,
+  );
+
+  if (blogScopedAsset) {
+    return blogScopedAsset[1];
+  }
+
+  return relativePath;
+}
+
 async function readAssetDataUrl(path: string): Promise<string> {
   const file = await zro.fs.read(path).bytes();
   const mimeType = contentTypeFor(path);
@@ -103,10 +117,7 @@ function fallbackNavigation(docs: Doc[]): NavSection[] {
   ];
 }
 
-function resolveNavigation(
-  navResult: Result<NavSection[], unknown>,
-  docs: Doc[],
-): NavSection[] {
+function resolveNavigation(navResult: Result<NavSection[], unknown>, docs: Doc[]): NavSection[] {
   return match(navResult, {
     Ok: (nav) => nav,
     Err: () => fallbackNavigation(docs),
@@ -164,8 +175,12 @@ async function renderPage(): Promise<string> {
       content="Jonty Knox is an Australian software entrepreneur, engineer, designer, and Co-founder of CustomerOS."
     />
     <meta property="og:type" content="website" />
+    <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <script>
       (function () {
         var storageKey = "payload-theme";
@@ -382,9 +397,9 @@ async function renderPage(): Promise<string> {
 }
 
 async function serveStaticAsset(pathname: string): Promise<Response | null> {
-  const relativePath = pathname.replace(/^\/+/, "");
+  const relativePath = resolvePublicAssetPath(pathname);
 
-  if (!relativePath || relativePath.includes("..") || relativePath.includes("\\")) {
+  if (!relativePath) {
     return null;
   }
 
@@ -448,6 +463,11 @@ zro.serve({
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const pathname = normalizePathname(url.pathname);
+    const asset = await serveStaticAsset(pathname);
+
+    if (asset) {
+      return asset;
+    }
 
     if (pathname === "/") {
       return htmlResponse(await renderPage());
@@ -460,12 +480,6 @@ zro.serve({
     if (pathname.startsWith("/blog/")) {
       const slug = pathname.replace(/^\/blog\//, "");
       return routeBlogPost(slug);
-    }
-
-    const asset = await serveStaticAsset(pathname);
-
-    if (asset) {
-      return asset;
     }
 
     return new Response("Not found", { status: 404 });
