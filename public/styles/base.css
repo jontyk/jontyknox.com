@@ -29,7 +29,7 @@
   src: url("/inter-regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
 }
 
 @font-face {
@@ -37,7 +37,7 @@
   src: url("/inter-semibold.woff2") format("woff2");
   font-style: normal;
   font-weight: 600;
-  font-display: block;
+  font-display: swap;
 }
 
 body {
@@ -45,15 +45,6 @@ body {
   min-height: 100vh;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-}
-
-html {
-  opacity: 0;
-}
-
-html[data-theme="dark"],
-html[data-theme="light"] {
-  opacity: initial;
 }
 
 .page-wrapper {

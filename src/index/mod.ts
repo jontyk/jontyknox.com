@@ -21,6 +21,13 @@ type BlogShellAssets = {
   portraitSrc: string;
 };
 
+const portraitImagePath = "/images/jonty-knox.jpg";
+const reflectionImagePath = "/images/jonty-knox-reflection.jpg";
+const formalImagePath = "/images/jonty-knox-formal.jpg";
+const officeImagePath = "/images/jonty-knox-office.jpg";
+const ycImagePath = "/images/jonty-knox-yc-retreat.jpg";
+const westminsterImagePath = "/images/jonty-knox-westminster.jpg";
+
 function normalizePathname(pathname: string): string {
   if (pathname === "/") {
     return pathname;
@@ -37,25 +44,6 @@ async function readTextFile(path: string): Promise<string> {
     Ok: (content) => content,
     Err: () => "",
   });
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  let output = "";
-
-  for (let index = 0; index < bytes.length; index += 3) {
-    const byte1 = bytes[index] ?? 0;
-    const byte2 = bytes[index + 1] ?? 0;
-    const byte3 = bytes[index + 2] ?? 0;
-    const chunk = (byte1 << 16) | (byte2 << 8) | byte3;
-
-    output += alphabet[(chunk >> 18) & 63];
-    output += alphabet[(chunk >> 12) & 63];
-    output += index + 1 < bytes.length ? alphabet[(chunk >> 6) & 63] : "=";
-    output += index + 2 < bytes.length ? alphabet[chunk & 63] : "=";
-  }
-
-  return output;
 }
 
 function contentTypeFor(path: string): string {
@@ -81,21 +69,15 @@ function resolvePublicAssetPath(pathname: string): string | null {
   return relativePath;
 }
 
-async function readAssetDataUrl(path: string): Promise<string> {
-  const file = await zro.fs.read(path).bytes();
-  const mimeType = contentTypeFor(path);
-
-  return match(file, {
-    Ok: (bytes) => `data:${mimeType};base64,${encodeBase64(bytes)}`,
-    Err: () => "",
-  });
-}
-
-function htmlResponse(body: string, status = 200): Response {
+function htmlResponse(
+  body: string,
+  status = 200,
+  cacheControl = "public, max-age=300, stale-while-revalidate=86400",
+): Response {
   return new Response(body, {
     status,
     headers: {
-      "cache-control": "no-store",
+      "cache-control": cacheControl,
       "content-type": "text/html; charset=utf-8",
     },
   });
@@ -125,38 +107,22 @@ function resolveNavigation(navResult: Result<NavSection[], unknown>, docs: Doc[]
 }
 
 async function loadBlogShellAssets(): Promise<BlogShellAssets> {
-  const [baseCss, blogCss, portraitSrc] = await Promise.all([
+  const [baseCss, blogCss] = await Promise.all([
     readTextFile("public/styles/base.css"),
     readTextFile("public/styles/blog.css"),
-    readAssetDataUrl("public/images/jonty-knox.jpg"),
   ]);
 
   return {
     baseCss,
     blogCss,
-    portraitSrc,
+    portraitSrc: portraitImagePath,
   };
 }
 
 async function renderPage(): Promise<string> {
-  const [
-    baseCss,
-    homeCss,
-    portraitSrc,
-    reflectionSrc,
-    formalSrc,
-    officeSrc,
-    ycSrc,
-    westminsterSrc,
-  ] = await Promise.all([
+  const [baseCss, homeCss] = await Promise.all([
     readTextFile("public/styles/base.css"),
     readTextFile("public/styles/home.css"),
-    readAssetDataUrl("public/images/jonty-knox.jpg"),
-    readAssetDataUrl("public/images/jonty-knox-reflection.jpg"),
-    readAssetDataUrl("public/images/jonty-knox-formal.jpg"),
-    readAssetDataUrl("public/images/jonty-knox-office.jpg"),
-    readAssetDataUrl("public/images/jonty-knox-yc-retreat.jpg"),
-    readAssetDataUrl("public/images/jonty-knox-westminster.jpg"),
   ]);
 
   return `<!doctype html>
@@ -208,7 +174,7 @@ async function renderPage(): Promise<string> {
     <div class="page-wrapper">
       <header>
         <div class="header-row">
-          <img src="${portraitSrc}" alt="Jonty Knox" width="60" height="60" />
+          <img src="${portraitImagePath}" alt="Jonty Knox" width="60" height="60" fetchpriority="high" />
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">◐</button>
         </div>
         <h1>Jonty Knox</h1>
@@ -329,23 +295,23 @@ async function renderPage(): Promise<string> {
           <h2>Media</h2>
           <div class="grid">
             <figure>
-              <img class="gridImage" src="${reflectionSrc}" alt="Jonty Knox headshot" width="400" height="200" />
+              <img class="gridImage" src="${reflectionImagePath}" alt="Jonty Knox headshot" width="400" height="200" loading="lazy" decoding="async" />
               <figcaption>Introducing the world to CustomerOS AI Agents in 2024</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${formalSrc}" alt="Jonty Knox in traditional Scottish black tie" width="400" height="200" />
+              <img class="gridImage" src="${formalImagePath}" alt="Jonty Knox in traditional Scottish black tie" width="400" height="200" loading="lazy" decoding="async" />
               <figcaption>Jonty in traditional Scottish black tie (kilt not pictured)</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${officeSrc}" alt="Jonty Knox speaking about CustomerOS product strategy" width="400" height="200" />
+              <img class="gridImage" src="${officeImagePath}" alt="Jonty Knox speaking about CustomerOS product strategy" width="400" height="200" loading="lazy" decoding="async" />
               <figcaption>Speaking about CustomerOS's product strategy</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${ycSrc}" alt="Jonty Knox at YC S22 Batch Kickoff in Sonoma" width="400" height="200" />
+              <img class="gridImage" src="${ycImagePath}" alt="Jonty Knox at YC S22 Batch Kickoff in Sonoma" width="400" height="200" loading="lazy" decoding="async" />
               <figcaption>Attending the YC S22 Batch Kickoff in Sonoma, California</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${westminsterSrc}" alt="Jonty Knox visiting Westminster" width="400" height="200" />
+              <img class="gridImage" src="${westminsterImagePath}" alt="Jonty Knox visiting Westminster" width="400" height="200" loading="lazy" decoding="async" />
               <figcaption>Visiting Westminster to meet with the UK's Investment Minister</figcaption>
             </figure>
           </div>
