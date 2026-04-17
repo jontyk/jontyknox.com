@@ -29,7 +29,7 @@
   src: url("/inter-regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: optional;
 }
 
 @font-face {
@@ -37,7 +37,7 @@
   src: url("/inter-semibold.woff2") format("woff2");
   font-style: normal;
   font-weight: 600;
-  font-display: swap;
+  font-display: optional;
 }
 
 body {
@@ -217,6 +217,6 @@ blockquote span {
 
 @media screen and (max-width: 500px) {
   .gridImage {
-    height: 100%;
+    height: auto;
   }
 }

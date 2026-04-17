@@ -21,12 +21,14 @@ type BlogShellAssets = {
   portraitSrc: string;
 };
 
-const portraitImagePath = "/images/jonty-knox.jpg";
-const reflectionImagePath = "/images/jonty-knox-reflection.jpg";
-const formalImagePath = "/images/jonty-knox-formal.jpg";
-const officeImagePath = "/images/jonty-knox-office.jpg";
+const portraitOptimizedImagePath = "/images/jonty-knox-120.jpg";
+const reflectionOptimizedImagePath = "/images/jonty-knox-reflection-900.jpg";
+const formalOptimizedImagePath = "/images/jonty-knox-formal-900.jpg";
+const officeOptimizedImagePath = "/images/jonty-knox-office-900.jpg";
 const ycImagePath = "/images/jonty-knox-yc-retreat.jpg";
-const westminsterImagePath = "/images/jonty-knox-westminster.jpg";
+const westminsterOptimizedImagePath = "/images/jonty-knox-westminster-900.jpg";
+
+const immutableAssetCacheControl = "public, max-age=31536000, immutable";
 
 function normalizePathname(pathname: string): string {
   if (pathname === "/") {
@@ -49,6 +51,16 @@ async function readTextFile(path: string): Promise<string> {
 function contentTypeFor(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
   return contentTypes[ext] ?? "application/octet-stream";
+}
+
+function cacheControlFor(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+
+  if (["avif", "ico", "jpg", "jpeg", "png", "webmanifest", "webp", "woff2"].includes(ext)) {
+    return immutableAssetCacheControl;
+  }
+
+  return "public, max-age=3600, stale-while-revalidate=86400";
 }
 
 function resolvePublicAssetPath(pathname: string): string | null {
@@ -115,7 +127,7 @@ async function loadBlogShellAssets(): Promise<BlogShellAssets> {
   return {
     baseCss,
     blogCss,
-    portraitSrc: portraitImagePath,
+    portraitSrc: portraitOptimizedImagePath,
   };
 }
 
@@ -174,7 +186,7 @@ async function renderPage(): Promise<string> {
     <div class="page-wrapper">
       <header>
         <div class="header-row">
-          <img src="${portraitImagePath}" alt="Jonty Knox" width="60" height="60" fetchpriority="high" />
+          <img src="${portraitOptimizedImagePath}" alt="Jonty Knox" width="60" height="60" fetchpriority="high" decoding="async" />
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">◐</button>
         </div>
         <h1>Jonty Knox</h1>
@@ -295,15 +307,15 @@ async function renderPage(): Promise<string> {
           <h2>Media</h2>
           <div class="grid">
             <figure>
-              <img class="gridImage" src="${reflectionImagePath}" alt="Jonty Knox headshot" width="400" height="200" loading="lazy" decoding="async" />
+              <img class="gridImage" src="${reflectionOptimizedImagePath}" alt="Jonty Knox headshot" width="900" height="600" loading="lazy" decoding="async" />
               <figcaption>Introducing the world to CustomerOS AI Agents in 2024</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${formalImagePath}" alt="Jonty Knox in traditional Scottish black tie" width="400" height="200" loading="lazy" decoding="async" />
+              <img class="gridImage" src="${formalOptimizedImagePath}" alt="Jonty Knox in traditional Scottish black tie" width="602" height="900" loading="lazy" decoding="async" />
               <figcaption>Jonty in traditional Scottish black tie (kilt not pictured)</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${officeImagePath}" alt="Jonty Knox speaking about CustomerOS product strategy" width="400" height="200" loading="lazy" decoding="async" />
+              <img class="gridImage" src="${officeOptimizedImagePath}" alt="Jonty Knox speaking about CustomerOS product strategy" width="900" height="675" loading="lazy" decoding="async" />
               <figcaption>Speaking about CustomerOS's product strategy</figcaption>
             </figure>
             <figure>
@@ -311,7 +323,7 @@ async function renderPage(): Promise<string> {
               <figcaption>Attending the YC S22 Batch Kickoff in Sonoma, California</figcaption>
             </figure>
             <figure>
-              <img class="gridImage" src="${westminsterImagePath}" alt="Jonty Knox visiting Westminster" width="400" height="200" loading="lazy" decoding="async" />
+              <img class="gridImage" src="${westminsterOptimizedImagePath}" alt="Jonty Knox visiting Westminster" width="900" height="898" loading="lazy" decoding="async" />
               <figcaption>Visiting Westminster to meet with the UK's Investment Minister</figcaption>
             </figure>
           </div>
@@ -375,7 +387,7 @@ async function serveStaticAsset(pathname: string): Promise<Response | null> {
     Ok: (bytes) =>
       new Response(bytes, {
         headers: {
-          "cache-control": "public, max-age=3600",
+          "cache-control": cacheControlFor(relativePath),
           "content-type": contentTypeFor(relativePath),
         },
       }),
