@@ -1,8 +1,6 @@
 import type { Doc, NavSection } from "../docs/mod.ts";
 
 type BlogPageAssets = {
-  baseCss: string;
-  blogCss: string;
   portraitSrc: string;
 };
 
@@ -143,7 +141,7 @@ function stripLeadingHeading(html: string): string {
 }
 
 function renderBlogLayout(options: BlogLayoutOptions): string {
-  const { title, description, body, activePath, baseCss, blogCss, portraitSrc, ogType } = options;
+  const { title, description, body, activePath, portraitSrc, ogType } = options;
   const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
 
   return `<!doctype html>
@@ -162,9 +160,9 @@ function renderBlogLayout(options: BlogLayoutOptions): string {
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/blog.css" />
     <script>${renderThemeSetupScript()}</script>
-    <style>${baseCss}</style>
-    <style>${blogCss}</style>
   </head>
   <body>
     <div class="page-wrapper page-wrapper-blog">

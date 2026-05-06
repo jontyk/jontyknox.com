@@ -16,8 +16,6 @@ const contentTypes: Record<string, string> = {
 };
 
 type BlogShellAssets = {
-  baseCss: string;
-  blogCss: string;
   portraitSrc: string;
 };
 
@@ -37,15 +35,6 @@ function normalizePathname(pathname: string): string {
 
   const normalized = pathname.replace(/\/+$/, "");
   return normalized || "/";
-}
-
-async function readTextFile(path: string): Promise<string> {
-  const file = await zro.fs.read(path).text();
-
-  return match(file, {
-    Ok: (content) => content,
-    Err: () => "",
-  });
 }
 
 function contentTypeFor(path: string): string {
@@ -119,24 +108,12 @@ function resolveNavigation(navResult: Result<NavSection[], unknown>, docs: Doc[]
 }
 
 async function loadBlogShellAssets(): Promise<BlogShellAssets> {
-  const [baseCss, blogCss] = await Promise.all([
-    readTextFile("public/styles/base.css"),
-    readTextFile("public/styles/blog.css"),
-  ]);
-
   return {
-    baseCss,
-    blogCss,
     portraitSrc: portraitOptimizedImagePath,
   };
 }
 
 async function renderPage(): Promise<string> {
-  const [baseCss, homeCss] = await Promise.all([
-    readTextFile("public/styles/base.css"),
-    readTextFile("public/styles/home.css"),
-  ]);
-
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -159,6 +136,8 @@ async function renderPage(): Promise<string> {
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/home.css" />
     <script>
       (function () {
         var storageKey = "payload-theme";
@@ -179,8 +158,6 @@ async function renderPage(): Promise<string> {
         document.documentElement.setAttribute("data-theme", theme);
       })();
     </script>
-    <style>${baseCss}</style>
-    <style>${homeCss}</style>
   </head>
   <body>
     <div class="page-wrapper">
