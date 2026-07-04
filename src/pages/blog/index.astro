@@ -47,7 +47,7 @@ const posts = (await getCollection("blog")).sort(
                 <p class="ledger-meta">
                   {metaParts(post.data.publishedAt, post.data.category).map((part) => (
                     <>
-                      {part} <span class="slash">/</span>{" "}
+                      {part}<span class="slash"> / </span>
                     </>
                   ))}
                   <a href={`/blog/${post.id}`} aria-label={`Read ${post.data.title}`}>Read →</a>
