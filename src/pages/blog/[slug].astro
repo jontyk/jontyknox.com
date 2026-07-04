@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from "astro:content";
 import BlogLayout from "../../layouts/BlogLayout.astro";
-import { metaLine } from "../../lib/format";
+import { metaParts } from "../../lib/format";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog");
@@ -10,7 +10,7 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
-const meta = metaLine(post.data.publishedAt, post.data.category);
+const parts = metaParts(post.data.publishedAt, post.data.category);
 ---
 
 <BlogLayout
@@ -19,12 +19,24 @@ const meta = metaLine(post.data.publishedAt, post.data.category);
   ogType="article"
   activePath={`/blog/${post.id}`}
 >
-  <article class="blog-main blog-article">
-    <a class="blog-back-link" href="/blog">Back to all posts</a>
-    {meta && <p class="blog-meta">{meta}</p>}
+  <article class="ledger-article">
+    <a class="ledger-back" href="/blog">← All posts</a>
+    {
+      parts.length > 0 && (
+        <p class="ledger-meta">
+          {parts.map((part, index) => (
+            <>
+              {index > 0 && <span class="slash"> / </span>}
+              {part}
+            </>
+          ))}
+        </p>
+      )
+    }
     <h1>{post.data.title}</h1>
-    {post.data.excerpt && <p class="blog-lead">{post.data.excerpt}</p>}
-    <div class="blog-prose">
+    {post.data.excerpt && <p class="ledger-lead">{post.data.excerpt}</p>}
+    <hr class="ledger-rule" />
+    <div class="ledger-prose">
       <Content />
     </div>
   </article>
