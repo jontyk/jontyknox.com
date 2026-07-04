@@ -1,4 +1,5 @@
-zro_modules/
+node_modules/
 dist/
-.zro/
+.astro/
+.vercel/
 *.log

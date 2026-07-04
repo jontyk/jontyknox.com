@@ -1,0 +1,17 @@
+---
+import BlogLayout from "../layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  title="Page not found | Jonty Knox"
+  description="Page not found."
+  activePath="/blog"
+  showSidebar={false}
+>
+  <section class="blog-main blog-not-found">
+    <span class="blog-hero-kicker">404</span>
+    <h1>That page has wandered off</h1>
+    <p>The page you were looking for does not exist, or the slug has changed.</p>
+    <a class="blog-back-link" href="/blog">Browse the blog</a>
+  </section>
+</BlogLayout>

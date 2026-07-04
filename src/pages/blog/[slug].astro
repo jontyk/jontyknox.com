@@ -1,0 +1,31 @@
+---
+import { getCollection, render } from "astro:content";
+import BlogLayout from "../../layouts/BlogLayout.astro";
+import { metaLine } from "../../lib/format";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const meta = metaLine(post.data.publishedAt, post.data.category);
+---
+
+<BlogLayout
+  title={`${post.data.title} | Jonty Knox`}
+  description={post.data.excerpt ?? `Read ${post.data.title} on Jonty Knox's blog.`}
+  ogType="article"
+  activePath={`/blog/${post.id}`}
+>
+  <article class="blog-main blog-article">
+    <a class="blog-back-link" href="/blog">Back to all posts</a>
+    {meta && <p class="blog-meta">{meta}</p>}
+    <h1>{post.data.title}</h1>
+    {post.data.excerpt && <p class="blog-lead">{post.data.excerpt}</p>}
+    <div class="blog-prose">
+      <Content />
+    </div>
+  </article>
+</BlogLayout>

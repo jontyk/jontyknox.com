@@ -5,7 +5,6 @@ excerpt: The hard part of agent design is not intelligence. It is making behavio
 publishedAt: 2026-03-29
 ---
 
-# Building AI agents people actually trust
 
 The interesting part of AI agents is not the demo. It is the second week after launch.
 

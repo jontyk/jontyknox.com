@@ -5,7 +5,6 @@ excerpt: Old buildings and software share more than most founders want to admit.
 publishedAt: 2026-03-25
 ---
 
-# Renovating the farmhouse like a product
 
 Restoring an old farmhouse in Tuscany has turned out to be a surprisingly good teacher.
 

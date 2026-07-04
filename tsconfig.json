@@ -1,27 +1,5 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "esnext",
-    "moduleResolution": "node",
-    "moduleDetection": "force",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ]
-  },
-  "include": [
-    "zro-env.d.ts",
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "dist",
-    "tmp",
-    "zro_modules"
-  ]
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
 }

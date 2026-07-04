@@ -1,0 +1,50 @@
+---
+import { getCollection } from "astro:content";
+import BlogLayout from "../../layouts/BlogLayout.astro";
+import { metaLine } from "../../lib/format";
+
+const posts = (await getCollection("blog")).sort(
+  (a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0),
+);
+---
+
+<BlogLayout
+  title="Blog | Jonty Knox"
+  description="Writing from Jonty Knox on AI agents, product craft, founder life, and building things with conviction."
+  activePath="/blog"
+>
+  <section class="blog-main">
+    <div class="blog-hero">
+      <span class="blog-hero-kicker">Writing</span>
+      <h1>Thoughts in public</h1>
+      <p>The blog is markdown-backed, statically built with Astro, and intentionally lightweight.</p>
+    </div>
+    <div class="blog-card-grid">
+      {
+        posts.length === 0 ? (
+          <article class="blog-card blog-card-empty">
+            <h2>No posts yet</h2>
+            <p>
+              Add markdown files under <code>content/blog</code> and they will show up here.
+            </p>
+          </article>
+        ) : (
+          posts.map((post) => (
+            <article class="blog-card">
+              {metaLine(post.data.publishedAt, post.data.category) && (
+                <p class="blog-meta">{metaLine(post.data.publishedAt, post.data.category)}</p>
+              )}
+              <h2>
+                <a href={`/blog/${post.id}`}>{post.data.title}</a>
+              </h2>
+              {post.data.excerpt && <p class="blog-card-excerpt">{post.data.excerpt}</p>}
+              <a class="blog-card-cta" href={`/blog/${post.id}`}>
+                Read post
+              </a>
+            </article>
+          ))
+        )
+      }
+    </div>
+  </section>
+</BlogLayout>

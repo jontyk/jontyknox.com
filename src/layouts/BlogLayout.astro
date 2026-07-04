@@ -1,0 +1,73 @@
+---
+import BaseHead from "../components/BaseHead.astro";
+import ThemeToggleScript from "../components/ThemeToggleScript.astro";
+import navSections from "../../content/blog/nav.json";
+
+interface Props {
+  title: string;
+  description: string;
+  ogType?: "article" | "website";
+  activePath: string;
+  showSidebar?: boolean;
+}
+
+const { title, description, ogType, activePath, showSidebar = true } = Astro.props;
+const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead title={title} description={description} ogType={ogType} stylesheet="blog" />
+  </head>
+  <body>
+    <div class="page-wrapper page-wrapper-blog">
+      <header class="blog-header">
+        <div class="header-row">
+          <a class="blog-brand" href="/">
+            <img src="/images/jonty-knox-120.jpg" alt="Jonty Knox" width="60" height="60" />
+            <div class="blog-brand-copy">
+              <span class="blog-eyebrow">Jonty Knox</span>
+              <strong>Blog</strong>
+            </div>
+          </a>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">◐</button>
+        </div>
+        <p class="blog-intro">
+          Notes on AI agents, product taste, company building, and the occasional lesson from restoring an old farmhouse in Tuscany.
+        </p>
+        <nav class="blog-top-nav" aria-label="Primary">
+          <a href="/">Home</a>
+          <a href="/blog" aria-current={blogActive ? "page" : undefined}>All posts</a>
+        </nav>
+      </header>
+      <main class="blog-layout">
+        {
+          showSidebar && navSections.length > 0 && (
+            <aside class="blog-sidebar">
+              <div class="blog-sidebar-inner">
+                <span class="blog-sidebar-kicker">Explore</span>
+                {navSections.map((section) => (
+                  <section class="blog-nav-section">
+                    <h2>{section.title}</h2>
+                    <ul>
+                      {section.items.map((item) => (
+                        <li>
+                          <a href={item.path} aria-current={item.path === activePath ? "page" : undefined}>
+                            {item.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </aside>
+          )
+        }
+        <slot />
+      </main>
+    </div>
+    <ThemeToggleScript />
+  </body>
+</html>

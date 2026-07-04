@@ -1,0 +1,46 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  ogType?: "article" | "website";
+  stylesheet: "home" | "blog";
+}
+
+const { title, description, ogType = "website", stylesheet } = Astro.props;
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content={ogType} />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<link rel="stylesheet" href="/styles/base.css" />
+<link rel="stylesheet" href={`/styles/${stylesheet}.css`} />
+<script is:inline>
+  (function () {
+    var storageKey = "payload-theme";
+    var defaultTheme = "light";
+
+    function getImplicitPreference() {
+      var mediaQuery = "(prefers-color-scheme: dark)";
+      var mql = window.matchMedia(mediaQuery);
+      return typeof mql.matches === "boolean" ? (mql.matches ? "dark" : "light") : null;
+    }
+
+    var theme = localStorage.getItem(storageKey);
+
+    if (theme !== "light" && theme !== "dark") {
+      theme = getImplicitPreference() || defaultTheme;
+    }
+
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>

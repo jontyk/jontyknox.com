@@ -2,115 +2,36 @@
 
 ## Purpose
 
-This repository is a zro app, not a Node or Next app.
-Agents working here should default to zro-native patterns for routing, file access, capabilities, and type-checking.
+This repository is a static Astro site deployed on Vercel.
 
 ## Project Shape
 
-- Project config: [zro.toml](./zro.toml)
-- Entrypoint module: [src/index/mod.ts](./src/index/mod.ts)
-- Public assets directory: `/public`
-- Editor/type support: [tsconfig.json](./tsconfig.json) and [zro-env.d.ts](./zro-env.d.ts)
+- Config: [astro.config.mjs](./astro.config.mjs)
+- Pages: `src/pages/` (homepage, blog index, `blog/[slug]`, 404)
+- Layouts/components: `src/layouts/`, `src/components/`
+- Blog content: markdown in `content/blog/` (loaded via the `blog` content collection in [src/content.config.ts](./src/content.config.ts))
+- Blog sidebar navigation: [content/blog/nav.json](./content/blog/nav.json)
+- Static assets: `public/` (served as-is, including `public/styles/*.css`)
 
-Important: `entrypoint = "src/index"` means zro looks for `src/index/mod.ts`, not `src/index.ts`.
-
-## Default Commands
-
-Use these first:
+## Commands
 
 ```bash
-zro dev
-zro lint src/index/mod.ts
-zro build
-tsc --noEmit
-zro fmt src/index/mod.ts
+npm run dev       # local dev server
+npm run build     # static build to dist/
+npm run preview   # preview the built site
 ```
 
-If `zro dev` behaves unexpectedly, also try:
+## Conventions
 
-```bash
-zro dev src/index/mod.ts
-```
+- Styling is plain CSS in `public/styles/` (base.css shared, home.css and blog.css per shell). No CSS framework.
+- Dark/light theme uses a `data-theme` attribute set by an inline script (`payload-theme` localStorage key). Inline scripts must use `is:inline`.
+- Blog posts need frontmatter: `title`, `category`, and optionally `excerpt`, `publishedAt`. Do not include an `# H1` in the markdown body — the page template renders the title.
+- New posts should also be added to `content/blog/nav.json` if they belong in the sidebar.
 
-## zro Runtime Rules
+## Deployment
 
-- Prefer `zro.serve(...)` for HTTP apps.
-- Prefer `zro.fs.*` for runtime filesystem access.
-- Prefer `match(...)` on zro `Result` values instead of assuming success.
-- Do not assume Node built-ins like `node:fs` are available in runtime code.
-- Treat zro runtime code like a capability-gated environment, not a full Node server.
-
-## File System Guidance
-
-Use zro APIs at runtime:
-
-```ts
-const text = await zro.fs.read("file.txt").text();
-const bytes = await zro.fs.read("public/image.png").bytes();
-const entries = await zro.fs.readDir("public");
-```
-
-Handle results with `match(...)`:
-
-```ts
-const file = await zro.fs.read("public/example.txt").text();
-
-return match(file, {
-  Ok: (content) => content,
-  Err: () => null,
-});
-```
-
-Avoid these in runtime code unless support is explicitly verified:
-
-- `import { readFile } from "node:fs/promises"`
-- path-based Node filesystem helpers
-
-## Capabilities
-
-zro capabilities are declared in [zro.toml](./zro.toml).
-If runtime code needs new access, update the matching module allow-list.
-
-Important:
-
-- Capabilities are granted per module, for example `[index.allow]`
-- The module name here comes from the entrypoint folder name and config, not from arbitrary file names
-
-Rules:
-
-- If you add runtime reads outside `/public`, update `fs.read`.
-- If you add runtime writes, explicitly add `fs.write`.
-- If you add network access, explicitly add `fetch`.
-- Keep grants as narrow as practical.
-
-## Dependencies
-
-If runtime code imports JSR packages, install them with `zro add`, for example:
-
-```bash
-zro add jsr:@hono/hono
-```
-
-Do not assume npm or `node_modules` is the source of truth for runtime dependencies.
-
-## Type Checking
-
-zro can build without a local `tsconfig.json`, but this repo keeps one for editor support and `tsc --noEmit`.
-
-- Runtime validation: `zro lint` and `zro build`
-- Editor support: [tsconfig.json](./tsconfig.json)
-- Ambient zro globals for this repo: [zro-env.d.ts](./zro-env.d.ts)
-- If future zro features need more ambient types, extend `zro-env.d.ts`
+Vercel auto-detects Astro; no adapter or vercel.json is required. Output is fully static.
 
 ## Verification
 
-After meaningful changes, run:
-
-```bash
-zro fmt src/index/mod.ts
-zro lint src/index/mod.ts
-zro build
-tsc --noEmit
-```
-
-If runtime behavior changed, also confirm `zro.toml` grants still match the code.
+After changes, run `npm run build` and confirm all pages generate.

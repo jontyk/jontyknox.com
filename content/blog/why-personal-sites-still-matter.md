@@ -5,7 +5,6 @@ excerpt: A personal site is still the cleanest way to explain what you are build
 publishedAt: 2026-03-31
 ---
 
-# Why personal sites still matter
 
 A social profile answers the wrong question.
 

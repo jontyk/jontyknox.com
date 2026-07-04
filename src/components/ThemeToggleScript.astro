@@ -1,0 +1,27 @@
+<script is:inline>
+  (function () {
+    var storageKey = "payload-theme";
+    var toggle = document.getElementById("theme-toggle");
+
+    if (!toggle) return;
+
+    function nextTheme(theme) {
+      return theme === "dark" ? "light" : "dark";
+    }
+
+    function updateLabel(theme) {
+      toggle.setAttribute("aria-label", "Switch to " + nextTheme(theme) + " mode");
+      toggle.textContent = theme === "dark" ? "☀" : "◐";
+    }
+
+    var currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+    updateLabel(currentTheme);
+
+    toggle.addEventListener("click", function () {
+      currentTheme = nextTheme(currentTheme);
+      document.documentElement.setAttribute("data-theme", currentTheme);
+      localStorage.setItem(storageKey, currentTheme);
+      updateLabel(currentTheme);
+    });
+  })();
+</script>
