@@ -50,7 +50,7 @@ const posts = (await getCollection("blog")).sort(
                       {part} <span class="slash">/</span>{" "}
                     </>
                   ))}
-                  <a href={`/blog/${post.id}`}>Read →</a>
+                  <a href={`/blog/${post.id}`} aria-label={`Read ${post.data.title}`}>Read →</a>
                 </p>
               </div>
             </li>
