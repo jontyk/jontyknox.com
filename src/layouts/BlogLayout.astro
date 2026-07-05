@@ -7,10 +7,20 @@ interface Props {
   description: string;
   ogType?: "article" | "website";
   activePath: string;
+  subbarLeft?: string;
+  subbarRight?: string;
 }
 
-const { title, description, ogType, activePath } = Astro.props;
+const {
+  title,
+  description,
+  ogType,
+  activePath,
+  subbarLeft = "Writing, occasionally",
+  subbarRight = "Agents · Product · Tuscany",
+} = Astro.props;
 const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
+const homeActive = activePath === "/";
 const year = new Date().getFullYear();
 ---
 
@@ -25,15 +35,15 @@ const year = new Date().getFullYear();
         <div class="masthead-row">
           <a class="masthead-brand" href="/">Jonty Knox</a>
           <nav class="masthead-nav" aria-label="Primary">
-            <a href="/">Home</a>
+            <a href="/" aria-current={homeActive ? "page" : undefined}>Home</a>
             <a href="/blog" aria-current={blogActive ? "page" : undefined}>All posts</a>
             <a href="/rss.xml">RSS</a>
             <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">◐</button>
           </nav>
         </div>
         <div class="masthead-subbar">
-          <span>Writing, occasionally</span>
-          <span>Agents · Product · Tuscany</span>
+          <span>{subbarLeft}</span>
+          <span>{subbarRight}</span>
         </div>
       </header>
       <main class="ledger-main">
