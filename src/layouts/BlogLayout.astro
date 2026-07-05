@@ -9,6 +9,8 @@ interface Props {
   activePath: string;
   subbarLeft?: string;
   subbarRight?: string;
+  stylesheet?: "blog" | "fuel";
+  noindex?: boolean;
 }
 
 const {
@@ -18,6 +20,8 @@ const {
   activePath,
   subbarLeft = "Writing, occasionally",
   subbarRight = "Agents · Product · Tuscany",
+  stylesheet = "blog",
+  noindex = false,
 } = Astro.props;
 const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
 const homeActive = activePath === "/";
@@ -27,7 +31,7 @@ const year = new Date().getFullYear();
 <!doctype html>
 <html lang="en">
   <head>
-    <BaseHead title={title} description={description} ogType={ogType} stylesheet="blog" />
+    <BaseHead title={title} description={description} ogType={ogType} stylesheet={stylesheet} noindex={noindex} />
   </head>
   <body id="top">
     <div class="ledger-page">

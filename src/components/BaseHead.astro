@@ -3,16 +3,18 @@ interface Props {
   title: string;
   description: string;
   ogType?: "article" | "website";
-  stylesheet: "blog";
+  stylesheet: "blog" | "fuel";
+  noindex?: boolean;
 }
 
-const { title, description, ogType = "website", stylesheet } = Astro.props;
+const { title, description, ogType = "website", stylesheet, noindex = false } = Astro.props;
 ---
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{title}</title>
 <meta name="description" content={description} />
+{noindex && <meta name="robots" content="noindex" />}
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:type" content={ogType} />
