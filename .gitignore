@@ -3,3 +3,7 @@ dist/
 .astro/
 .vercel/
 *.log
+
+# AI working artifacts (session mockups, specs/plans)
+.superpowers/
+docs/superpowers/
