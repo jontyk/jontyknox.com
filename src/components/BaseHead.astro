@@ -3,7 +3,7 @@ interface Props {
   title: string;
   description: string;
   ogType?: "article" | "website";
-  stylesheet: "home" | "blog";
+  stylesheet: "blog";
 }
 
 const { title, description, ogType = "website", stylesheet } = Astro.props;
