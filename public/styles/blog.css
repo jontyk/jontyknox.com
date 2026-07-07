@@ -73,6 +73,8 @@ body {
 }
 
 .masthead-nav a {
+  /* transparent border reserves space so the active state can't shift layout */
+  border-bottom: 2px solid transparent;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -80,7 +82,7 @@ body {
 }
 
 .masthead-nav a[aria-current="page"] {
-  border-bottom: 2px solid var(--ledger-accent);
+  border-bottom-color: var(--ledger-accent);
   color: var(--ledger-accent);
 }
 
