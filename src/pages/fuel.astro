@@ -1,0 +1,221 @@
+---
+import BlogLayout from "../layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  title="Fuel Calculator"
+  description="Personal endurance drink-mix and fueling calculator."
+  activePath="/fuel"
+  stylesheet="fuel"
+  noindex={true}
+  subbarLeft="Endurance fueling"
+  subbarRight="Drink-mix planner"
+>
+  <div class="fuel">
+    <h1 class="ledger-kicker">Fuel Calculator</h1>
+    <p class="ledger-note">
+      Homemade sports-drink recipe and timed schedule from your ride. Estimates only — weigh yourself
+      before/after a ride for real sweat numbers. Not medical advice.
+    </p>
+
+    <div class="fuel-grid">
+      <form class="fuel-inputs" id="fuel-form" autocomplete="off">
+        <fieldset>
+          <legend>Ride</legend>
+          <label>Hours <input type="number" name="hours" min="0" max="24" step="1" value="2" /></label>
+          <label>Minutes <input type="number" name="minutes" min="0" max="59" step="5" value="40" /></label>
+          <label>Intensity (avg HR zone)
+            <select name="intensity">
+              <option value="z60">60–70%</option>
+              <option value="z70" selected>70–80%</option>
+              <option value="z80">80–90%</option>
+              <option value="z90">90%+</option>
+            </select>
+          </label>
+          <label>Body weight (kg) <input type="number" name="weightKg" min="30" max="150" step="1" value="72" /></label>
+          <label>Temperature (°C) <input type="number" name="tempC" min="-10" max="45" step="1" value="15" /></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Fueling</legend>
+          <label>GI training
+            <select name="gi">
+              <option value="untrained">Untrained</option>
+              <option value="moderate" selected>Moderately trained</option>
+              <option value="well">Well trained</option>
+            </select>
+          </label>
+          <label>Sweat sodium
+            <select name="sweatSodium">
+              <option value="low">Low (~500 mg/L)</option>
+              <option value="typical" selected>Typical (~800 mg/L)</option>
+              <option value="salty">Salty (~1200 mg/L)</option>
+            </select>
+          </label>
+          <label>Custom carb target (g/hr, blank = suggested)
+            <input type="number" name="customCarb" min="0" max="150" step="5" placeholder="suggested" />
+          </label>
+          <label>Malto:fructose ratio
+            <select name="ratio">
+              <option value="1:1">1:1 (plain table sugar)</option>
+              <option value="2:1">2:1</option>
+              <option value="1:0.8" selected>1:0.8</option>
+            </select>
+          </label>
+        </fieldset>
+      </form>
+
+      <div class="fuel-results">
+        <section class="fuel-summary">
+          <h2 class="ledger-kicker">Targets</h2>
+          <div class="fuel-stats">
+            <div><span class="fuel-stat-value" id="r-carbs">–</span><span class="fuel-stat-label">carbs / hr</span></div>
+            <div><span class="fuel-stat-value" id="r-fluid">–</span><span class="fuel-stat-label">fluid / hr</span></div>
+            <div><span class="fuel-stat-value" id="r-sodium">–</span><span class="fuel-stat-label">sodium / hr</span></div>
+            <div><span class="fuel-stat-value" id="r-kcal">–</span><span class="fuel-stat-label">total kcal</span></div>
+          </div>
+          <p class="fuel-note" id="r-deficit"></p>
+          <p class="fuel-note fuel-hint" id="r-ratiohint" hidden></p>
+        </section>
+
+        <section class="fuel-recipe">
+          <h2 class="ledger-kicker">Mix (whole session)</h2>
+          <ul class="fuel-recipe-list" id="r-recipe"></ul>
+          <p class="fuel-warn" id="r-warn" hidden></p>
+        </section>
+
+        <section class="fuel-schedule">
+          <h2 class="ledger-kicker">Schedule</h2>
+          <table>
+            <thead>
+              <tr><th>Time</th><th>Drink (ml)</th><th>Carbs (g)</th><th>Sodium (mg)</th></tr>
+            </thead>
+            <tbody id="r-schedule"></tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  </div>
+</BlogLayout>
+
+<script>
+  import {
+    effectiveCarb,
+    fluidPlan,
+    sodiumPlan,
+    buildRecipe,
+    buildSchedule,
+    type FuelInputs,
+    type Intensity,
+    type GiTraining,
+    type SweatSodium,
+    type Ratio,
+  } from "../lib/fuel.ts";
+
+  const STORAGE_KEY = "fuel-calc-v1";
+  const form = document.getElementById("fuel-form") as HTMLFormElement;
+
+  function readInputs(): FuelInputs {
+    const d = new FormData(form);
+    const num = (k: string) => Number(d.get(k));
+    const customRaw = String(d.get("customCarb") ?? "").trim();
+    return {
+      hours: num("hours"),
+      minutes: num("minutes"),
+      intensity: String(d.get("intensity")) as Intensity,
+      weightKg: num("weightKg"),
+      tempC: num("tempC"),
+      gi: String(d.get("gi")) as GiTraining,
+      sweatSodium: String(d.get("sweatSodium")) as SweatSodium,
+      customCarb: customRaw === "" ? null : Number(customRaw),
+      ratio: String(d.get("ratio")) as Ratio,
+    };
+  }
+
+  function restore() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as Record<string, unknown>;
+      for (const el of Array.from(form.elements)) {
+        const field = el as HTMLInputElement | HTMLSelectElement;
+        if (!field.name || !(field.name in saved)) continue;
+        const v = saved[field.name];
+        field.value = v === null || v === undefined ? "" : String(v);
+      }
+    } catch {
+      /* ignore corrupt storage */
+    }
+  }
+
+  function save(i: FuelInputs) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(i));
+  }
+
+  const setText = (id: string, text: string) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  function render() {
+    const i = readInputs();
+    save(i);
+
+    const fluid = fluidPlan(i);
+    const sodium = sodiumPlan(i);
+    const recipe = buildRecipe(i);
+
+    setText("r-carbs", `${Math.round(effectiveCarb(i))} g`);
+    setText("r-fluid", `${fluid.plannedMlPerHr} ml`);
+    setText("r-sodium", `${sodium.targetMgPerHr} mg`);
+    setText("r-kcal", `${recipe.kcal}`);
+    setText(
+      "r-deficit",
+      `Estimated sweat loss ~${fluid.lossMlPerHr} ml/hr — planned intake leaves ~${fluid.deficitMlPerHr} ml/hr deficit.`,
+    );
+
+    const ratioHint = document.getElementById("r-ratiohint")!;
+    const highCarb = effectiveCarb(i) >= 90 && (i.ratio === "1:1" || i.ratio === "2:1");
+    ratioHint.hidden = !highCarb;
+    if (highCarb) {
+      ratioHint.textContent =
+        "At ≥90 g/hr a 1:0.8 glucose:fructose blend supports higher total absorption.";
+    }
+
+    const recipeEl = document.getElementById("r-recipe")!;
+    const items: string[] = [`${(recipe.totalWaterMl / 1000).toFixed(2)} L water`];
+    if (recipe.tableSugarG > 0) {
+      items.push(`${recipe.tableSugarG} g table sugar (sucrose)`);
+    } else {
+      items.push(`${recipe.maltoG} g maltodextrin`, `${recipe.fructoseG} g fructose`);
+    }
+    items.push(`${recipe.saltG} g table salt (~${recipe.saltTsp} tsp)`);
+    items.push(`Concentration: ${recipe.concentrationPct}%`);
+    recipeEl.innerHTML = items.map((t) => `<li>${t}</li>`).join("");
+
+    const warn = document.getElementById("r-warn")!;
+    if (recipe.warning === "strong") {
+      warn.hidden = false;
+      warn.textContent =
+        "Very concentrated (>12%) — raises GI-distress risk. Add water, split into stronger + plain-water bottles, or take some carbs as food/gels.";
+    } else if (recipe.warning === "soft") {
+      warn.hidden = false;
+      warn.textContent =
+        "Above isotonic (>8%) — fine if gut-trained, especially with a glucose+fructose blend, but empties slower than a 6–8% drink.";
+    } else {
+      warn.hidden = true;
+    }
+
+    const tbody = document.getElementById("r-schedule")!;
+    tbody.innerHTML = buildSchedule(i)
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.drinkMl}</td><td>${r.carbG}</td><td>${r.sodiumMg}</td></tr>`,
+      )
+      .join("");
+  }
+
+  restore();
+  render();
+  form.addEventListener("input", render);
+</script>
