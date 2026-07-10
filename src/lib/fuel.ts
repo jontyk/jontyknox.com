@@ -91,8 +91,14 @@ const DRINK_CONC_BY_GI: Record<GiTraining, number> = {
   moderate: 0.1,
   well: 0.12,
 };
-// Standard single gel (Maurten Gel 100 class).
+// Standard single gel (Maurten Gel 100 class). Each gel should be taken with
+// plain water — not the carb drink — to keep gut concentration absorbable.
 export const GEL_CARB_G = 25;
+export const GEL_WATER_ML = 150;
+
+// Drink sodium above ~700 mg/L hurts palatability and absorption
+// (optimal range in the literature is ~230-690 mg/L; avoid >1000).
+const DRINK_SODIUM_MAX_MG_PER_L = 700;
 
 export interface Recipe {
   totalCarbG: number;
@@ -106,6 +112,7 @@ export interface Recipe {
   saltG: number;
   saltTsp: number;
   sodiumMg: number;
+  sodiumShortfallMg: number;
   kcal: number;
   concentrationPct: number;
   warning: Warning;
@@ -117,7 +124,10 @@ export function buildRecipe(i: FuelInputs): Recipe {
   const durH = durationHours(i);
   const totalCarbG = effectiveCarb(i) * durH;
   const totalWaterMl = fluidPlan(i).plannedMlPerHr * durH;
-  const sodiumMg = sodiumPlan(i).targetMgPerHr * durH;
+  const sodiumTargetMg = sodiumPlan(i).targetMgPerHr * durH;
+  const sodiumCapMg = (totalWaterMl / 1000) * DRINK_SODIUM_MAX_MG_PER_L;
+  const sodiumMg = Math.min(sodiumTargetMg, sodiumCapMg);
+  const sodiumShortfallMg = Math.max(0, sodiumTargetMg - sodiumMg);
 
   // Whole gels absorb any carbs the drink can't hold at the rider's cap;
   // rounding up means gels are preferred over a maxed-out drink.
@@ -155,6 +165,7 @@ export function buildRecipe(i: FuelInputs): Recipe {
     saltG: round1(saltG),
     saltTsp: round1(saltG / TSP_SALT_G),
     sodiumMg: Math.round(sodiumMg),
+    sodiumShortfallMg: Math.round(sodiumShortfallMg),
     kcal: Math.round(totalCarbG * KCAL_PER_CARB_G),
     concentrationPct: round1(concentrationPct),
     warning,
@@ -201,10 +212,15 @@ export function buildSchedule(i: FuelInputs): ScheduleRow[] {
     rows.push(portion(1 / units, hhmm(s * STEP_MIN), s * STEP_MIN));
   }
 
-  // Spread whole gels evenly across the mid-ride rows (never at pre-start).
+  // Spread gels evenly across the ride, but never before 40 minutes — the
+  // first gel is best taken 30-45 min in, then one every 30-45 min.
+  const firstStep = Math.min(nSteps, 2); // step 2 = 40 min
   for (let g = 1; g <= recipe.gelCount; g++) {
-    const step = Math.min(nSteps, Math.max(1, Math.round((g * nSteps) / (recipe.gelCount + 1))));
-    rows[step].gels += 1;
+    const step =
+      recipe.gelCount === 1
+        ? Math.round((firstStep + nSteps) / 2)
+        : firstStep + Math.round(((g - 1) * (nSteps - firstStep)) / (recipe.gelCount - 1));
+    rows[Math.min(nSteps, Math.max(firstStep, step))].gels += 1;
   }
   return rows;
 }

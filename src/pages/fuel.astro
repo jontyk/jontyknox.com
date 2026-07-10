@@ -100,12 +100,16 @@ import BlogLayout from "../layouts/BlogLayout.astro";
         <section class="fuel-recipe">
           <h2 class="ledger-kicker">Mix (whole session)</h2>
           <ul class="fuel-recipe-list" id="r-recipe"></ul>
+          <p class="fuel-note" id="r-saltnote" hidden></p>
           <p class="fuel-warn" id="r-warn" hidden></p>
         </section>
 
         <section class="fuel-schedule">
           <h2 class="ledger-kicker">Schedule</h2>
-          <p class="fuel-note">Drink the listed amount at each time — equal sips every 20 minutes, gels where shown.</p>
+          <p class="fuel-note">
+            Equal sips of mix every 20 minutes. Take gels with plain water — not the mix — so your gut
+            can absorb them; carry the extra water separately.
+          </p>
           <table>
             <thead>
               <tr><th>Time</th><th>Drink now (ml)</th><th>Gels</th><th>Total drunk (ml)</th><th>Carbs so far (g)</th></tr>
@@ -126,6 +130,7 @@ import BlogLayout from "../layouts/BlogLayout.astro";
     buildRecipe,
     buildSchedule,
     GEL_CARB_G,
+    GEL_WATER_ML,
     type FuelInputs,
     type Intensity,
     type GiTraining,
@@ -244,8 +249,16 @@ import BlogLayout from "../layouts/BlogLayout.astro";
     items.push(`Concentration: ${recipe.concentrationPct}%`);
     if (recipe.gelCount > 0) {
       items.push(
-        `Plus ${recipe.gelCount} × standard gel (25 g carbs each, ${recipe.gelCarbG} g total) — carbs beyond your drink's comfortable concentration`,
+        `Plus ${recipe.gelCount} × standard gel (25 g carbs each, ${recipe.gelCarbG} g total) — take each with ~${GEL_WATER_ML} ml plain water, not the mix`,
       );
+    }
+
+    const saltNote = document.getElementById("r-saltnote")!;
+    saltNote.hidden = recipe.sodiumShortfallMg === 0;
+    if (recipe.sodiumShortfallMg > 0) {
+      saltNote.textContent =
+        `Salt is capped at ~700 mg sodium/L for taste and absorption, leaving ~${recipe.sodiumShortfallMg} mg of your sodium target out of the bottle. ` +
+        `Fine for most rides — on very hot days consider salt capsules taken with plenty of water.`;
     }
     recipeEl.innerHTML = items.map((t) => `<li>${t}</li>`).join("");
 
@@ -269,7 +282,10 @@ import BlogLayout from "../layouts/BlogLayout.astro";
       .map((r) => {
         mlSoFar += r.drinkMl;
         carbSoFar += r.carbG + r.gels * GEL_CARB_G;
-        const gelCell = r.gels > 0 ? `${r.gels} gel${r.gels > 1 ? "s" : ""}` : "–";
+        const gelCell =
+          r.gels > 0
+            ? `${r.gels} gel${r.gels > 1 ? "s" : ""} + ~${r.gels * GEL_WATER_ML} ml water`
+            : "–";
         return `<tr><td>${r.label}</td><td>${r.drinkMl}</td><td>${gelCell}</td><td>${Math.round(mlSoFar)}</td><td>${Math.round(carbSoFar)}</td></tr>`;
       })
       .join("");

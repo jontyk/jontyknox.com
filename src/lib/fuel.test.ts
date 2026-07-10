@@ -127,6 +127,39 @@ test("buildSchedule spreads gels across mid-ride rows and totals match", () => {
   assert.equal(rows[0].gels, 0);
 });
 
+test("buildSchedule never places the first gel before 40 minutes", () => {
+  // lots of gels on a long ride
+  const i = { ...base, hours: 4, minutes: 0, customCarb: 120, gi: "untrained" as const };
+  const rows = buildSchedule(i);
+  const firstGel = rows.find((r) => r.gels > 0);
+  assert.ok(firstGel, "expected at least one gel");
+  assert.ok(firstGel!.timeMin >= 40, `first gel at ${firstGel!.timeMin} min`);
+});
+
+test("buildSchedule spaces gels at least 40 minutes apart when they fit", () => {
+  const i = { ...base, hours: 4, minutes: 0, customCarb: 110, gi: "moderate" as const };
+  const rows = buildSchedule(i);
+  const gelTimes = rows.filter((r) => r.gels > 0).flatMap((r) => Array(r.gels).fill(r.timeMin));
+  const totalGels = gelTimes.length;
+  // enough 40-min slots exist (4h ride -> slots at 40..220)
+  if (totalGels > 0 && totalGels <= 5) {
+    for (let k = 1; k < gelTimes.length; k++) {
+      assert.ok(gelTimes[k] - gelTimes[k - 1] >= 40, `gap ${gelTimes[k] - gelTimes[k - 1]}`);
+    }
+  }
+});
+
+test("buildRecipe caps drink sodium at 700 mg/L and reports the unreplaced remainder", () => {
+  // salty sweater, very hot: uncapped would exceed 1000 mg/L
+  const hot = buildRecipe({ ...base, tempC: 38, sweatSodium: "salty" });
+  const mgPerL = hot.sodiumMg / (hot.totalWaterMl / 1000);
+  assert.ok(mgPerL <= 700 + 1, `got ${mgPerL} mg/L`);
+  assert.ok(hot.sodiumShortfallMg > 0, `got ${hot.sodiumShortfallMg}`);
+  // mild day: no cap, no shortfall
+  const mild = buildRecipe({ ...base, tempC: 12, sweatSodium: "low" });
+  assert.equal(mild.sodiumShortfallMg, 0);
+});
+
 test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the drink totals", () => {
   const rows = buildSchedule(base);
   assert.equal(rows[0].label, "Pre-Start");
