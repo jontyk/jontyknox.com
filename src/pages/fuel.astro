@@ -105,9 +105,10 @@ import BlogLayout from "../layouts/BlogLayout.astro";
 
         <section class="fuel-schedule">
           <h2 class="ledger-kicker">Schedule</h2>
+          <p class="fuel-note">Drink the listed amount at each time — equal sips every 20 minutes.</p>
           <table>
             <thead>
-              <tr><th>Time</th><th>Drink (ml)</th><th>Carbs (g)</th><th>Sodium (mg)</th></tr>
+              <tr><th>Time</th><th>Drink now (ml)</th><th>Total drunk (ml)</th><th>Carbs so far (g)</th></tr>
             </thead>
             <tbody id="r-schedule"></tbody>
           </table>
@@ -261,11 +262,14 @@ import BlogLayout from "../layouts/BlogLayout.astro";
     }
 
     const tbody = document.getElementById("r-schedule")!;
+    let mlSoFar = 0;
+    let carbSoFar = 0;
     tbody.innerHTML = buildSchedule(i)
-      .map(
-        (r) =>
-          `<tr><td>${r.label}</td><td>${r.drinkMl}</td><td>${r.carbG}</td><td>${r.sodiumMg}</td></tr>`,
-      )
+      .map((r) => {
+        mlSoFar += r.drinkMl;
+        carbSoFar += r.carbG;
+        return `<tr><td>${r.label}</td><td>${r.drinkMl}</td><td>${Math.round(mlSoFar)}</td><td>${Math.round(carbSoFar)}</td></tr>`;
+      })
       .join("");
   }
 
