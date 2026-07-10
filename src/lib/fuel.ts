@@ -84,8 +84,14 @@ export function sodiumPlan(i: FuelInputs): SodiumPlan {
 
 export type Warning = "none" | "soft" | "strong";
 
+// Drinks above ~12% carbohydrate slow gastric emptying and raise GI-distress
+// risk, so the mix is capped there and surplus carbs move to gels/food.
+const MAX_DRINK_CONC = 0.12;
+
 export interface Recipe {
   totalCarbG: number;
+  drinkCarbG: number;
+  gelCarbG: number;
   totalWaterMl: number;
   tableSugarG: number; // >0 only for the 1:1 (sucrose) recipe
   maltoG: number;
@@ -106,24 +112,29 @@ export function buildRecipe(i: FuelInputs): Recipe {
   const totalWaterMl = fluidPlan(i).plannedMlPerHr * durH;
   const sodiumMg = sodiumPlan(i).targetMgPerHr * durH;
 
+  const drinkCarbG = Math.min(totalCarbG, totalWaterMl * MAX_DRINK_CONC);
+  const gelCarbG = totalCarbG - drinkCarbG;
+
   let tableSugarG = 0;
   let maltoG = 0;
   let fructoseG = 0;
   if (i.ratio === "1:1") {
-    tableSugarG = totalCarbG; // sucrose = ~1:1 glucose:fructose
+    tableSugarG = drinkCarbG; // sucrose = ~1:1 glucose:fructose
   } else {
     const fruWeight = i.ratio === "2:1" ? 0.5 : 0.8; // malto : fructose parts
     const parts = 1 + fruWeight;
-    maltoG = totalCarbG * (1 / parts);
-    fructoseG = totalCarbG * (fruWeight / parts);
+    maltoG = drinkCarbG * (1 / parts);
+    fructoseG = drinkCarbG * (fruWeight / parts);
   }
 
   const saltG = totalWaterMl > 0 ? sodiumMg / 1000 / SALT_SODIUM_FRACTION : 0;
-  const concentrationPct = totalWaterMl > 0 ? (totalCarbG / totalWaterMl) * 100 : 0;
+  const concentrationPct = totalWaterMl > 0 ? (drinkCarbG / totalWaterMl) * 100 : 0;
   const warning: Warning = concentrationPct > 12 ? "strong" : concentrationPct > 8 ? "soft" : "none";
 
   return {
     totalCarbG: round1(totalCarbG),
+    drinkCarbG: round1(drinkCarbG),
+    gelCarbG: round1(gelCarbG),
     totalWaterMl: Math.round(totalWaterMl),
     tableSugarG: round1(tableSugarG),
     maltoG: round1(maltoG),
@@ -164,7 +175,7 @@ export function buildSchedule(i: FuelInputs): ScheduleRow[] {
     label,
     timeMin,
     drinkMl: Math.round(recipe.totalWaterMl * frac),
-    carbG: round1(recipe.totalCarbG * frac),
+    carbG: round1(recipe.drinkCarbG * frac),
     sodiumMg: Math.round(recipe.sodiumMg * frac),
   });
 

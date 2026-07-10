@@ -83,17 +83,26 @@ test("buildRecipe splits carbs by ratio and flags concentration", () => {
   assert.ok(["none", "soft", "strong"].includes(r.warning));
 });
 
-test("buildRecipe warns 'strong' above ~12% concentration", () => {
+test("buildRecipe caps drink concentration at 12% and pushes surplus carbs to gels/food", () => {
   const dry = buildRecipe({ ...base, customCarb: 120, weightKg: 55, tempC: 5, intensity: "z60" });
-  assert.ok(dry.concentrationPct > 12, `got ${dry.concentrationPct}`);
-  assert.equal(dry.warning, "strong");
+  assert.ok(dry.concentrationPct <= 12, `got ${dry.concentrationPct}`);
+  assert.ok(dry.gelCarbG > 0, `got ${dry.gelCarbG}`);
+  assert.ok(Math.abs(dry.drinkCarbG + dry.gelCarbG - dry.totalCarbG) < 0.2);
+  // ingredient split applies to the drink carbs only
+  assert.ok(Math.abs(dry.maltoG + dry.fructoseG - dry.drinkCarbG) < 0.2);
 });
 
-test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the totals", () => {
+test("buildRecipe keeps all carbs in the drink when they fit below 12%", () => {
+  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35 });
+  assert.equal(easy.gelCarbG, 0);
+  assert.ok(Math.abs(easy.drinkCarbG - easy.totalCarbG) < 0.2);
+});
+
+test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the drink totals", () => {
   const rows = buildSchedule(base);
   assert.equal(rows[0].label, "Pre-Start");
   assert.ok(rows.length >= 2);
   const carbSum = rows.reduce((a, r) => a + r.carbG, 0);
   const recipe = buildRecipe(base);
-  assert.ok(Math.abs(carbSum - recipe.totalCarbG) < 0.5, `sum ${carbSum} vs ${recipe.totalCarbG}`);
+  assert.ok(Math.abs(carbSum - recipe.drinkCarbG) < 0.5, `sum ${carbSum} vs ${recipe.drinkCarbG}`);
 });
