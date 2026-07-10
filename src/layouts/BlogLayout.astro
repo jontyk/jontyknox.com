@@ -24,6 +24,7 @@ const {
   noindex = false,
 } = Astro.props;
 const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
+const toolsActive = activePath === "/tools" || activePath === "/fuel";
 const homeActive = activePath === "/";
 const year = new Date().getFullYear();
 ---
@@ -41,6 +42,7 @@ const year = new Date().getFullYear();
           <nav class="masthead-nav" aria-label="Primary">
             <a href="/" aria-current={homeActive ? "page" : undefined}>Home</a>
             <a href="/blog" aria-current={blogActive ? "page" : undefined}>All posts</a>
+            <a href="/tools" aria-current={toolsActive ? "page" : undefined}>Tools</a>
             <a href="/rss.xml">RSS</a>
             <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">◐</button>
           </nav>

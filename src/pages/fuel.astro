@@ -7,23 +7,41 @@ import BlogLayout from "../layouts/BlogLayout.astro";
   description="Personal endurance drink-mix and fueling calculator."
   activePath="/fuel"
   stylesheet="fuel"
-  noindex={true}
   subbarLeft="Endurance fueling"
   subbarRight="Drink-mix planner"
 >
   <div class="fuel">
-    <h1 class="ledger-kicker">Fuel Calculator</h1>
-    <p class="ledger-note">
-      Homemade sports-drink recipe and timed schedule from your ride. Estimates only — weigh yourself
-      before/after a ride for real sweat numbers. Not medical advice.
-    </p>
+    <div class="ledger-hero fuel-hero">
+      <h1>Fuel <span class="accent">calculator</span></h1>
+      <p>
+        Homemade sports-drink recipe and timed schedule from your ride. Estimates only — weigh yourself
+        before/after a ride for real sweat numbers. Not medical advice.
+      </p>
+    </div>
 
     <div class="fuel-grid">
       <form class="fuel-inputs" id="fuel-form" autocomplete="off">
         <fieldset>
           <legend>Ride</legend>
-          <label>Hours <input type="number" name="hours" min="0" max="24" step="1" value="2" /></label>
-          <label>Minutes <input type="number" name="minutes" min="0" max="59" step="5" value="40" /></label>
+          <div class="fuel-duration">
+            <span class="fuel-duration-head">
+              Duration <output class="fuel-duration-value" id="duration-label">2:40</output>
+            </span>
+            <input type="hidden" name="durationMin" value="160" />
+            <div class="fuel-chips" id="duration-chips" role="group" aria-label="Duration presets">
+              <button type="button" data-min="60">1:00</button>
+              <button type="button" data-min="90">1:30</button>
+              <button type="button" data-min="120">2:00</button>
+              <button type="button" data-min="150">2:30</button>
+              <button type="button" data-min="180">3:00</button>
+              <button type="button" data-min="240">4:00</button>
+              <button type="button" data-min="300">5:00</button>
+            </div>
+            <div class="fuel-steppers">
+              <button type="button" id="duration-minus" aria-label="Subtract 15 minutes">−15 min</button>
+              <button type="button" id="duration-plus" aria-label="Add 15 minutes">+15 min</button>
+            </div>
+          </div>
           <label>Intensity (avg HR zone)
             <select name="intensity">
               <option value="z60">60–70%</option>
@@ -114,14 +132,33 @@ import BlogLayout from "../layouts/BlogLayout.astro";
 
   const STORAGE_KEY = "fuel-calc-v1";
   const form = document.getElementById("fuel-form") as HTMLFormElement;
+  const durationField = form.elements.namedItem("durationMin") as HTMLInputElement;
+  const durationLabel = document.getElementById("duration-label")!;
+  const chips = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("#duration-chips button"),
+  );
+
+  const DURATION_MIN = 15;
+  const DURATION_MAX = 24 * 60;
+
+  function setDuration(min: number) {
+    const clamped = Math.min(DURATION_MAX, Math.max(DURATION_MIN, min));
+    durationField.value = String(clamped);
+    durationLabel.textContent = `${Math.floor(clamped / 60)}:${String(clamped % 60).padStart(2, "0")}`;
+    for (const chip of chips) {
+      chip.setAttribute("aria-pressed", String(Number(chip.dataset.min) === clamped));
+    }
+    render();
+  }
 
   function readInputs(): FuelInputs {
     const d = new FormData(form);
     const num = (k: string) => Number(d.get(k));
+    const durationMin = num("durationMin");
     const customRaw = String(d.get("customCarb") ?? "").trim();
     return {
-      hours: num("hours"),
-      minutes: num("minutes"),
+      hours: Math.floor(durationMin / 60),
+      minutes: durationMin % 60,
       intensity: String(d.get("intensity")) as Intensity,
       weightKg: num("weightKg"),
       tempC: num("tempC"),
@@ -139,9 +176,12 @@ import BlogLayout from "../layouts/BlogLayout.astro";
       const saved = JSON.parse(raw) as Record<string, unknown>;
       for (const el of Array.from(form.elements)) {
         const field = el as HTMLInputElement | HTMLSelectElement;
-        if (!field.name || !(field.name in saved)) continue;
+        if (!field.name || field.name === "durationMin" || !(field.name in saved)) continue;
         const v = saved[field.name];
         field.value = v === null || v === undefined ? "" : String(v);
+      }
+      if (typeof saved.hours === "number" && typeof saved.minutes === "number") {
+        durationField.value = String(saved.hours * 60 + saved.minutes);
       }
     } catch {
       /* ignore corrupt storage */
@@ -215,7 +255,17 @@ import BlogLayout from "../layouts/BlogLayout.astro";
       .join("");
   }
 
+  for (const chip of chips) {
+    chip.addEventListener("click", () => setDuration(Number(chip.dataset.min)));
+  }
+  document.getElementById("duration-minus")!.addEventListener("click", () => {
+    setDuration(Number(durationField.value) - 15);
+  });
+  document.getElementById("duration-plus")!.addEventListener("click", () => {
+    setDuration(Number(durationField.value) + 15);
+  });
+
   restore();
-  render();
+  setDuration(Number(durationField.value)); // syncs label + chips, then renders
   form.addEventListener("input", render);
 </script>
