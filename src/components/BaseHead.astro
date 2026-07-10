@@ -1,4 +1,6 @@
 ---
+import { readFileSync } from "node:fs";
+
 interface Props {
   title: string;
   description: string;
@@ -8,6 +10,11 @@ interface Props {
 }
 
 const { title, description, ogType = "website", stylesheet, noindex = false } = Astro.props;
+
+// Inline all page CSS at build time so first render doesn't block on stylesheet requests.
+const readStyle = (name: string) =>
+  readFileSync(new URL(`../../public/styles/${name}.css`, import.meta.url), "utf-8");
+const inlineCss = ["base", "ledger", stylesheet].map(readStyle).join("\n");
 ---
 
 <meta charset="utf-8" />
@@ -26,9 +33,9 @@ const { title, description, ogType = "website", stylesheet, noindex = false } = 
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="alternate" type="application/rss+xml" title="Jonty Knox — Blog" href="/rss.xml" />
 <link rel="sitemap" href="/sitemap-index.xml" />
-<link rel="stylesheet" href="/styles/base.css" />
-<link rel="stylesheet" href="/styles/ledger.css" />
-<link rel="stylesheet" href={`/styles/${stylesheet}.css`} />
+<link rel="preload" href="/inter-regular.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/inter-semibold.woff2" as="font" type="font/woff2" crossorigin />
+<style set:html={inlineCss}></style>
 <script is:inline>
   (function () {
     var storageKey = "payload-theme";
