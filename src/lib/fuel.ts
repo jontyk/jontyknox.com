@@ -168,7 +168,9 @@ function hhmm(totalMin: number): string {
 export function buildSchedule(i: FuelInputs): ScheduleRow[] {
   const durMin = Math.round(durationHours(i) * 60);
   const recipe = buildRecipe(i);
-  const nSteps = Math.max(1, Math.round(durMin / STEP_MIN));
+  // Last sip lands one step before the end — a drink at the finish can't be
+  // absorbed in time to fuel the ride.
+  const nSteps = Math.max(1, Math.round((durMin - STEP_MIN) / STEP_MIN));
   const units = PRE_FRACTION + nSteps;
 
   const portion = (frac: number, label: string, timeMin: number): ScheduleRow => ({
