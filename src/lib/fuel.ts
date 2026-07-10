@@ -84,13 +84,20 @@ export function sodiumPlan(i: FuelInputs): SodiumPlan {
 
 export type Warning = "none" | "soft" | "strong";
 
-// Drinks above ~12% carbohydrate slow gastric emptying and raise GI-distress
-// risk, so the mix is capped there and surplus carbs move to gels/food.
-const MAX_DRINK_CONC = 0.12;
+// Concentrated drinks slow gastric emptying and raise GI-distress risk, so
+// the mix is capped by gut training and surplus carbs move to whole gels.
+const DRINK_CONC_BY_GI: Record<GiTraining, number> = {
+  untrained: 0.08,
+  moderate: 0.1,
+  well: 0.12,
+};
+// Standard single gel (Maurten Gel 100 class).
+export const GEL_CARB_G = 25;
 
 export interface Recipe {
   totalCarbG: number;
   drinkCarbG: number;
+  gelCount: number;
   gelCarbG: number;
   totalWaterMl: number;
   tableSugarG: number; // >0 only for the 1:1 (sucrose) recipe
@@ -112,8 +119,13 @@ export function buildRecipe(i: FuelInputs): Recipe {
   const totalWaterMl = fluidPlan(i).plannedMlPerHr * durH;
   const sodiumMg = sodiumPlan(i).targetMgPerHr * durH;
 
-  const drinkCarbG = Math.min(totalCarbG, totalWaterMl * MAX_DRINK_CONC);
-  const gelCarbG = totalCarbG - drinkCarbG;
+  // Whole gels absorb any carbs the drink can't hold at the rider's cap;
+  // rounding up means gels are preferred over a maxed-out drink.
+  const maxDrinkCarbG = totalWaterMl * DRINK_CONC_BY_GI[i.gi];
+  const surplusG = Math.max(0, totalCarbG - maxDrinkCarbG);
+  const gelCount = surplusG > 0 ? Math.ceil(surplusG / GEL_CARB_G) : 0;
+  const gelCarbG = gelCount * GEL_CARB_G;
+  const drinkCarbG = Math.max(0, totalCarbG - gelCarbG);
 
   let tableSugarG = 0;
   let maltoG = 0;
@@ -134,6 +146,7 @@ export function buildRecipe(i: FuelInputs): Recipe {
   return {
     totalCarbG: round1(totalCarbG),
     drinkCarbG: round1(drinkCarbG),
+    gelCount,
     gelCarbG: round1(gelCarbG),
     totalWaterMl: Math.round(totalWaterMl),
     tableSugarG: round1(tableSugarG),
@@ -153,6 +166,7 @@ export interface ScheduleRow {
   timeMin: number;
   drinkMl: number;
   carbG: number;
+  gels: number;
   sodiumMg: number;
 }
 
@@ -178,12 +192,19 @@ export function buildSchedule(i: FuelInputs): ScheduleRow[] {
     timeMin,
     drinkMl: Math.round(recipe.totalWaterMl * frac),
     carbG: round1(recipe.drinkCarbG * frac),
+    gels: 0,
     sodiumMg: Math.round(recipe.sodiumMg * frac),
   });
 
   const rows: ScheduleRow[] = [portion(PRE_FRACTION / units, "Pre-Start", 0)];
   for (let s = 1; s <= nSteps; s++) {
     rows.push(portion(1 / units, hhmm(s * STEP_MIN), s * STEP_MIN));
+  }
+
+  // Spread whole gels evenly across the mid-ride rows (never at pre-start).
+  for (let g = 1; g <= recipe.gelCount; g++) {
+    const step = Math.min(nSteps, Math.max(1, Math.round((g * nSteps) / (recipe.gelCount + 1))));
+    rows[step].gels += 1;
   }
   return rows;
 }

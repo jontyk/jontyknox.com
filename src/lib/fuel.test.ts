@@ -83,19 +83,48 @@ test("buildRecipe splits carbs by ratio and flags concentration", () => {
   assert.ok(["none", "soft", "strong"].includes(r.warning));
 });
 
-test("buildRecipe caps drink concentration at 12% and pushes surplus carbs to gels/food", () => {
+test("buildRecipe caps drink concentration by GI training and fills the surplus with whole gels", () => {
   const dry = buildRecipe({ ...base, customCarb: 120, weightKg: 55, tempC: 5, intensity: "z60" });
+  // gi "well" -> 12% cap
   assert.ok(dry.concentrationPct <= 12, `got ${dry.concentrationPct}`);
-  assert.ok(dry.gelCarbG > 0, `got ${dry.gelCarbG}`);
+  assert.ok(dry.gelCount > 0, `got ${dry.gelCount}`);
+  assert.equal(dry.gelCarbG, dry.gelCount * 25);
+  // gels + drink together hit the total target exactly
   assert.ok(Math.abs(dry.drinkCarbG + dry.gelCarbG - dry.totalCarbG) < 0.2);
   // ingredient split applies to the drink carbs only
   assert.ok(Math.abs(dry.maltoG + dry.fructoseG - dry.drinkCarbG) < 0.2);
 });
 
-test("buildRecipe keeps all carbs in the drink when they fit below 12%", () => {
-  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35 });
+test("buildRecipe uses a lower concentration cap for less GI-trained riders", () => {
+  const inputs = { ...base, customCarb: 100, gi: "untrained" as const };
+  const untrained = buildRecipe(inputs);
+  const well = buildRecipe({ ...inputs, gi: "well" });
+  assert.ok(untrained.concentrationPct <= 8, `got ${untrained.concentrationPct}`);
+  assert.ok(untrained.gelCount >= well.gelCount);
+});
+
+test("buildRecipe prefers gels over a maxed-out drink (drink lands below the cap)", () => {
+  const r = buildRecipe({ ...base, customCarb: 120, weightKg: 55, tempC: 5, intensity: "z60" });
+  // whole gels (ceil) absorb the surplus, so the drink stays at or below its cap
+  const conc = r.drinkCarbG / r.totalWaterMl;
+  assert.ok(conc <= 0.12 + 1e-9, `got ${conc}`);
+});
+
+test("buildRecipe keeps all carbs in the drink when they fit under the cap", () => {
+  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35, customCarb: 50 });
+  assert.equal(easy.gelCount, 0);
   assert.equal(easy.gelCarbG, 0);
   assert.ok(Math.abs(easy.drinkCarbG - easy.totalCarbG) < 0.2);
+});
+
+test("buildSchedule spreads gels across mid-ride rows and totals match", () => {
+  const i = { ...base, customCarb: 120, weightKg: 55, tempC: 5, intensity: "z60" as const };
+  const recipe = buildRecipe(i);
+  const rows = buildSchedule(i);
+  const gelSum = rows.reduce((a, r) => a + r.gels, 0);
+  assert.equal(gelSum, recipe.gelCount);
+  // no gel at pre-start
+  assert.equal(rows[0].gels, 0);
 });
 
 test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the drink totals", () => {
