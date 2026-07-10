@@ -106,3 +106,21 @@ test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the dr
   const recipe = buildRecipe(base);
   assert.ok(Math.abs(carbSum - recipe.drinkCarbG) < 0.5, `sum ${carbSum} vs ${recipe.drinkCarbG}`);
 });
+
+test("buildSchedule's last drink lands one step before the ride ends, not at the end", () => {
+  // 2:00 ride -> last sip at 01:40, not 02:00
+  const rows = buildSchedule({ ...base, hours: 2, minutes: 0 });
+  const last = rows[rows.length - 1];
+  assert.equal(last.timeMin, 100, `got ${last.timeMin}`);
+  // still sums to the full drink totals
+  const carbSum = rows.reduce((a, r) => a + r.carbG, 0);
+  const recipe = buildRecipe({ ...base, hours: 2, minutes: 0 });
+  assert.ok(Math.abs(carbSum - recipe.drinkCarbG) < 0.5, `sum ${carbSum} vs ${recipe.drinkCarbG}`);
+});
+
+test("buildSchedule still emits at least one mid-ride drink on short rides", () => {
+  const rows = buildSchedule({ ...base, hours: 0, minutes: 30 });
+  assert.equal(rows[0].label, "Pre-Start");
+  assert.ok(rows.length >= 2, `got ${rows.length} rows`);
+  assert.ok(rows[rows.length - 1].timeMin < 30);
+});
