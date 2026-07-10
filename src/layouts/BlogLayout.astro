@@ -24,7 +24,7 @@ const {
   noindex = false,
 } = Astro.props;
 const blogActive = activePath === "/blog" || activePath.startsWith("/blog/");
-const toolsActive = activePath === "/tools" || activePath === "/fuel";
+const toolsActive = activePath === "/tools" || activePath.startsWith("/tools/");
 const homeActive = activePath === "/";
 const year = new Date().getFullYear();
 ---

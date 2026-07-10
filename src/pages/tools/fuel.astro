@@ -1,11 +1,11 @@
 ---
-import BlogLayout from "../layouts/BlogLayout.astro";
+import BlogLayout from "../../layouts/BlogLayout.astro";
 ---
 
 <BlogLayout
   title="Fuel Calculator"
   description="Personal endurance drink-mix and fueling calculator."
-  activePath="/fuel"
+  activePath="/tools/fuel"
   stylesheet="fuel"
   subbarLeft="Endurance fueling"
   subbarRight="Drink-mix planner"
@@ -136,7 +136,7 @@ import BlogLayout from "../layouts/BlogLayout.astro";
     type GiTraining,
     type SweatSodium,
     type Ratio,
-  } from "../lib/fuel.ts";
+  } from "../../lib/fuel.ts";
 
   const STORAGE_KEY = "fuel-calc-v1";
   const form = document.getElementById("fuel-form") as HTMLFormElement;
