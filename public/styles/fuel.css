@@ -1,152 +1,241 @@
-/* Fuel calculator — red-ledger styling, self-contained tokens. */
-:root {
-  --ledger-paper: #efece6;
-  --ledger-ink: #17150f;
-  --ledger-accent: #d43a1a;
-  --ledger-muted: #6e6a60;
-}
-[data-theme="dark"] {
-  --ledger-paper: #141412;
-  --ledger-ink: #eceae4;
-  --ledger-accent: #ff4f2a;
-  --ledger-muted: #99958b;
-}
+/* Fuel calculator. Shared chrome (tokens, masthead, footer, hero) lives in ledger.css. */
 
-body {
-  background: var(--ledger-paper);
-  color: var(--ledger-ink);
-}
-
-.fuel {
-  max-width: 60rem;
-  margin: 0 auto;
-}
-.ledger-kicker {
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ledger-accent);
-  margin: 0 0 0.4rem;
-}
-.ledger-note,
-.fuel-note {
-  color: var(--ledger-muted);
-  font-size: 0.9rem;
+.fuel-hero p {
+  margin-bottom: 26px;
 }
 
 .fuel-grid {
   display: grid;
-  grid-template-columns: minmax(0, 20rem) 1fr;
-  gap: 2rem;
-  margin-top: 1.5rem;
+  grid-template-columns: minmax(0, 19rem) 1fr;
+  gap: 0 32px;
+  border-top: 3px solid var(--ledger-ink);
+  padding-top: 20px;
 }
+
 @media (max-width: 720px) {
   .fuel-grid {
     grid-template-columns: 1fr;
   }
 }
 
+/* --- Inputs --- */
 .fuel-inputs fieldset {
-  border: 1px solid var(--ledger-ink);
-  padding: 1rem;
-  margin: 0 0 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--ledger-ink);
+  margin: 0 0 18px;
+  padding: 0 0 18px;
 }
+
 .fuel-inputs legend {
-  padding: 0 0.4rem;
-  font-weight: 600;
   color: var(--ledger-accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: 12px;
+  padding: 0;
+  text-transform: uppercase;
 }
+
 .fuel-inputs label {
+  color: var(--ledger-muted);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: var(--ledger-muted);
-  margin-bottom: 0.75rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  gap: 5px;
+  letter-spacing: 0.09em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
 }
+
 .fuel-inputs input,
 .fuel-inputs select {
   background: transparent;
   border: 1px solid var(--ledger-ink);
-  color: var(--ledger-ink);
-  padding: 0.4rem 0.5rem;
-  font: inherit;
   border-radius: 0;
+  color: var(--ledger-ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 7px 9px;
+  text-transform: none;
 }
+
 .fuel-inputs input:focus,
 .fuel-inputs select:focus {
   outline: 2px solid var(--ledger-accent);
   outline-offset: 1px;
 }
 
-.fuel-results section {
-  border-top: 1px solid var(--ledger-ink);
-  padding-top: 1rem;
-  margin-bottom: 1.5rem;
+/* --- Duration control --- */
+.fuel-duration {
+  margin-bottom: 14px;
 }
+
+.fuel-duration-head {
+  align-items: baseline;
+  color: var(--ledger-muted);
+  display: flex;
+  font-size: 0.64rem;
+  font-weight: 700;
+  gap: 10px;
+  justify-content: space-between;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.fuel-duration-value {
+  color: var(--ledger-ink);
+  font-family: "Helvetica Neue", "Inter", Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fuel-chips button,
+.fuel-steppers button {
+  background: transparent;
+  border: 1px solid var(--ledger-ink);
+  border-radius: 0;
+  color: var(--ledger-ink);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  padding: 6px 10px;
+}
+
+.fuel-chips button:hover,
+.fuel-steppers button:hover {
+  border-color: var(--ledger-accent);
+  color: var(--ledger-accent);
+}
+
+.fuel-chips button[aria-pressed="true"] {
+  background: var(--ledger-ink);
+  border-color: var(--ledger-ink);
+  color: var(--ledger-paper);
+}
+
+.fuel-steppers {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* --- Results --- */
+.fuel-results section {
+  border-bottom: 1px solid var(--ledger-ink);
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+}
+
+.fuel-results section:last-child {
+  border-bottom: 0;
+}
+
 .fuel-stats {
   display: grid;
+  gap: 12px;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-  margin: 0.5rem 0;
+  margin: 10px 0 12px;
 }
+
 @media (max-width: 480px) {
   .fuel-stats {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
 .fuel-stat-value {
-  display: block;
-  font-size: 1.6rem;
-  font-weight: 700;
   color: var(--ledger-ink);
+  display: block;
+  font-family: "Helvetica Neue", "Inter", Arial, sans-serif;
+  font-size: 1.55rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
+
 .fuel-stat-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--ledger-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
+
+.fuel-note {
+  color: var(--ledger-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+
 .fuel-hint {
   color: var(--ledger-accent);
 }
 
+/* --- Recipe --- */
 .fuel-recipe-list {
   list-style: none;
+  margin: 8px 0 0;
   padding: 0;
-  margin: 0.5rem 0;
 }
+
 .fuel-recipe-list li {
-  padding: 0.35rem 0;
   border-bottom: 1px dashed var(--ledger-muted);
-  font-size: 1.05rem;
+  font-size: 1rem;
+  padding: 7px 0;
 }
+
+.fuel-recipe-list li:last-child {
+  border-bottom: 0;
+}
+
 .fuel-warn {
   border: 1px solid var(--ledger-accent);
   color: var(--ledger-accent);
-  padding: 0.6rem 0.75rem;
   font-size: 0.85rem;
-  margin-top: 0.75rem;
+  line-height: 1.5;
+  margin-top: 10px;
+  padding: 10px 12px;
 }
 
+/* --- Schedule --- */
 .fuel-schedule table {
-  width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  margin-top: 8px;
+  width: 100%;
 }
+
 .fuel-schedule th,
 .fuel-schedule td {
-  text-align: left;
-  padding: 0.4rem 0.5rem;
   border-bottom: 1px solid var(--ledger-muted);
+  padding: 7px 8px;
+  text-align: left;
 }
+
 .fuel-schedule th {
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
   color: var(--ledger-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
+
 .fuel-schedule td:first-child {
   color: var(--ledger-accent);
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }

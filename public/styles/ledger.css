@@ -1,0 +1,179 @@
+/* Shared red-ledger chrome: tokens, page frame, masthead, footer.
+   Loaded on every page by BaseHead; page stylesheets add their own sections. */
+:root {
+  --ledger-paper: #efece6;
+  --ledger-ink: #17150f;
+  --ledger-accent: #d43a1a;
+  --ledger-muted: #6e6a60;
+}
+
+[data-theme="dark"] {
+  --ledger-paper: #141412;
+  --ledger-ink: #eceae4;
+  --ledger-accent: #ff4f2a;
+  --ledger-muted: #99958b;
+}
+
+body {
+  background: var(--ledger-paper);
+  color: var(--ledger-ink);
+  transition: background 300ms ease;
+}
+
+.ledger-page {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 40px 20px 56px;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ledger-ink);
+}
+
+.ledger-page a {
+  color: var(--ledger-ink);
+}
+
+.ledger-page a:hover {
+  color: var(--ledger-accent);
+}
+
+/* --- Masthead --- */
+.masthead-brand {
+  font-family: "Helvetica Neue", "Inter", Arial, sans-serif;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.masthead-row {
+  align-items: baseline;
+  border-bottom: 3px solid var(--ledger-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.masthead-nav {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+}
+
+.masthead-nav a {
+  /* transparent border reserves space so the active state can't shift layout */
+  border-bottom: 2px solid transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.masthead-nav a[aria-current="page"] {
+  border-bottom-color: var(--ledger-accent);
+  color: var(--ledger-accent);
+}
+
+.masthead .theme-toggle {
+  color: var(--ledger-ink);
+}
+
+.masthead .theme-toggle:hover {
+  color: var(--ledger-accent);
+}
+
+.masthead-subbar {
+  border-bottom: 1px solid var(--ledger-ink);
+  color: var(--ledger-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.64rem;
+  font-weight: 700;
+  gap: 4px 16px;
+  justify-content: space-between;
+  letter-spacing: 0.14em;
+  padding: 7px 0;
+  text-transform: uppercase;
+}
+
+/* --- Footer --- */
+.ledger-footer {
+  color: var(--ledger-muted);
+  display: flex;
+  font-size: 0.64rem;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.14em;
+  margin-top: 16px;
+  text-transform: uppercase;
+}
+
+.ledger-footer a {
+  color: var(--ledger-accent);
+}
+
+/* --- Hero --- */
+.ledger-hero h1 {
+  font-family: "Helvetica Neue", "Inter", Arial, sans-serif;
+  font-weight: 900;
+  font-size: clamp(2.6rem, 8.5vw, 4.5rem);
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  margin: 38px 0 14px;
+  text-transform: uppercase;
+}
+
+.ledger-hero .accent {
+  color: var(--ledger-accent);
+}
+
+.ledger-hero p {
+  color: var(--ledger-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0 0 40px;
+  max-width: 28rem;
+}
+
+/* --- Shared text furniture --- */
+.ledger-kicker {
+  color: var(--ledger-accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.ledger-note {
+  color: var(--ledger-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  margin: -4px 0 8px;
+  text-transform: uppercase;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media screen and (max-width: 640px) {
+  .ledger-page {
+    padding: 24px 16px 40px;
+  }
+}

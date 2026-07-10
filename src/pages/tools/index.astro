@@ -1,0 +1,47 @@
+---
+import BlogLayout from "../../layouts/BlogLayout.astro";
+
+const tools = [
+  {
+    href: "/fuel",
+    title: "Fuel Calculator",
+    excerpt:
+      "Endurance drink-mix planner: carb, fluid, and sodium targets, a homemade recipe, and a timed drinking schedule for training rides.",
+    meta: "Cycling / Nutrition",
+  },
+];
+---
+
+<BlogLayout
+  title="Tools | Jonty Knox"
+  description="Small utilities built by Jonty Knox — calculators and other tools."
+  activePath="/tools"
+  subbarLeft="Small utilities"
+  subbarRight="Built for personal use"
+>
+  <section class="ledger-index">
+    <div class="ledger-hero">
+      <h1>Useful <span class="accent">little</span> tools</h1>
+      <p>Calculators and utilities I built for myself. Shared in case they're useful to you too.</p>
+    </div>
+    <ol class="ledger-list">
+      {
+        tools.map((tool, index) => (
+          <li class="ledger-entry">
+            <span class="ledger-num">{String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <h2>
+                <a href={tool.href}>{tool.title}</a>
+              </h2>
+              <p class="ledger-excerpt">{tool.excerpt}</p>
+              <p class="ledger-meta">
+                {tool.meta}<span class="slash"> / </span>
+                <a href={tool.href} aria-label={`Open ${tool.title}`}>Open →</a>
+              </p>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</BlogLayout>
