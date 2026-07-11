@@ -189,8 +189,8 @@ test("bottle allocation: keeps enough plain water for the gels it schedules", ()
   if (r.gelCount > 0 && r.gelWaterShortMl === 0) {
     assert.ok(r.plainBottles * r.bottleSizeMl >= r.gelCount * 150 - 1);
   }
-  // carbs always add up: drink + gels = target
-  assert.ok(Math.abs(r.drinkCarbG + r.gelCarbG - r.totalCarbG) < 0.2);
+  // carbs always add up: drink + gels + explicitly-unmet = target
+  assert.ok(Math.abs(r.drinkCarbG + r.gelCarbG + r.unmetCarbG - r.totalCarbG) < 0.2);
 });
 
 test("fluid plan is capped by carried bottles and flags the refill shortfall", () => {
@@ -202,6 +202,24 @@ test("fluid plan is capped by carried bottles and flags the refill shortfall", (
   assert.ok(r.refillShortfallMl > 0, `got ${r.refillShortfallMl}`);
   // comfortable case: no refill needed
   assert.equal(buildRecipe(base).refillShortfallMl, 0);
+});
+
+test("bottle allocation: gel water comes from the carried bottles, not a phantom extra", () => {
+  // 2h at 90 g/hr with 2x750: can't fit 180 g in the mix alone, so one
+  // bottle must go plain for the gels' water
+  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  const r = buildRecipe(i);
+  assert.ok(r.gelCount > 0, `got ${r.gelCount} gels`);
+  assert.ok(r.plainBottles >= 1, `got ${r.plainBottles} plain bottles`);
+  assert.equal(r.gelWaterShortMl, 0, `short ${r.gelWaterShortMl} ml`);
+  assert.ok(r.plainBottles * r.bottleSizeMl >= r.gelCount * 150 - 1);
+});
+
+test("bottle allocation: prefers covering the carb target over avoiding gels", () => {
+  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  const r = buildRecipe(i);
+  // 180 g target: mix-only tops out at ~146 g; with gels the plan gets close
+  assert.ok(r.unmetCarbG < 15, `unmet ${r.unmetCarbG} g`);
 });
 
 test("bottle allocation: flags when carried plain water can't cover gel water", () => {

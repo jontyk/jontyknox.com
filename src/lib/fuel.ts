@@ -148,27 +148,37 @@ export function buildRecipe(i: FuelInputs): Recipe {
   const refillShortfallMl = Math.max(0, Math.round(plan.idealMlPerHr * durH - carried));
   const cap = DRINK_CONC_BY_GI[i.gi];
 
-  // Mix water: as much as helps (fewest gels), limited by what you'll
-  // actually drink, what you can carry, and what the carbs need at the cap.
-  // Bottles can be part-filled, but a bottle is either mix or plain.
-  const waterForAllCarbs = cap > 0 ? totalCarbG / cap : 0;
-  const totalWaterMl = Math.min(intakeMl, carried, waterForAllCarbs);
-  const mixBottles =
-    totalWaterMl > 0 ? Math.min(i.bottleCount, Math.ceil(totalWaterMl / i.bottleSizeMl)) : 0;
-  const plainBottles = i.bottleCount - mixBottles;
-
-  // Whole gels cover the carbs the mix can't hold, but the gut can only
-  // handle so many — beyond ~2 gels/hr the remainder is flagged as unmet.
-  const surplusG = Math.max(0, totalCarbG - totalWaterMl * cap);
-  const gelsNeeded = surplusG > 0.1 ? Math.ceil(surplusG / GEL_CARB_G) : 0;
-  const gelCount = Math.min(gelsNeeded, Math.floor(MAX_GELS_PER_HR * durH));
+  // Split the carried bottles between mix and plain water, and pick a gel
+  // count, so the carb target is met as fully as possible. A bottle is
+  // either mix or plain (part-fills allowed); gels need their plain water
+  // reserved from the SAME carried bottles — no phantom extras. The gut
+  // caps gel frequency at ~2/hr. Among plans, minimize unmet carbs, then
+  // use the fewest gels.
+  const gelCap = Math.floor(MAX_GELS_PER_HR * durH);
+  const evaluate = (g: number) => {
+    const gelWaterMl = g * GEL_WATER_ML;
+    const plainBottles =
+      g > 0 ? Math.min(i.bottleCount, Math.max(1, Math.ceil(gelWaterMl / i.bottleSizeMl))) : 0;
+    const mixBottles = i.bottleCount - plainBottles;
+    const gelCarbG = g * GEL_CARB_G;
+    // Use the full fluid budget for mix — more water means a weaker,
+    // easier-emptying drink. Gel water rides on top of the plan.
+    const mixWaterMl = Math.min(intakeMl, mixBottles * i.bottleSizeMl);
+    const drinkCarbG = Math.min(Math.max(0, totalCarbG - gelCarbG), mixWaterMl * cap);
+    const unmetCarbG = Math.max(0, totalCarbG - drinkCarbG - gelCarbG);
+    const gelWaterShortMl = Math.max(0, Math.round(gelWaterMl - plainBottles * i.bottleSizeMl));
+    return { g, plainBottles, mixBottles, mixWaterMl, drinkCarbG, unmetCarbG, gelWaterShortMl };
+  };
+  let best = evaluate(0);
+  for (let g = 1; g <= gelCap; g++) {
+    const plan = evaluate(g);
+    if (plan.unmetCarbG < best.unmetCarbG - 0.1) best = plan;
+    if (best.unmetCarbG < 0.1) break; // target met with fewest gels
+  }
+  const { plainBottles, mixBottles, gelWaterShortMl, drinkCarbG, unmetCarbG } = best;
+  const totalWaterMl = best.mixWaterMl;
+  const gelCount = best.g;
   const gelCarbG = gelCount * GEL_CARB_G;
-  const drinkCarbG = Math.min(Math.max(0, totalCarbG - gelCarbG), totalWaterMl * cap);
-  const unmetCarbG = Math.max(0, totalCarbG - drinkCarbG - gelCarbG);
-  const gelWaterShortMl = Math.max(
-    0,
-    Math.round(gelCount * GEL_WATER_ML - plainBottles * i.bottleSizeMl),
-  );
 
   const sodiumTargetMg = sodiumPlan(i).targetMgPerHr * durH;
   const sodiumCapMg = (totalWaterMl / 1000) * DRINK_SODIUM_MAX_MG_PER_L;
