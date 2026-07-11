@@ -169,11 +169,14 @@ export function buildRecipe(i: FuelInputs): Recipe {
     const gelWaterShortMl = Math.max(0, Math.round(gelWaterMl - plainBottles * i.bottleSizeMl));
     return { g, plainBottles, mixBottles, mixWaterMl, drinkCarbG, unmetCarbG, gelWaterShortMl };
   };
+  // A shortfall within ~5% of target is noise — not worth trading a plain
+  // bottle and extra gels for. Treat it as met.
+  const carbTolG = totalCarbG * 0.05;
   let best = evaluate(0);
   for (let g = 1; g <= gelCap; g++) {
+    if (best.unmetCarbG <= carbTolG) break; // close enough with fewest gels
     const plan = evaluate(g);
     if (plan.unmetCarbG < best.unmetCarbG - 0.1) best = plan;
-    if (best.unmetCarbG < 0.1) break; // target met with fewest gels
   }
   const { plainBottles, mixBottles, gelWaterShortMl, drinkCarbG, unmetCarbG } = best;
   const totalWaterMl = best.mixWaterMl;

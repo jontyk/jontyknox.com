@@ -222,6 +222,30 @@ test("bottle allocation: prefers covering the carb target over avoiding gels", (
   assert.ok(r.unmetCarbG < 15, `unmet ${r.unmetCarbG} g`);
 });
 
+test("bottle allocation: doesn't add gels to close a trivial carb gap", () => {
+  // untrained, 2h at 60 g/hr = 120 g target; two 750 ml bottles at the 8%
+  // cap hold ~117 g. A ~3 g shortfall shouldn't cost a bottle and 3 gels.
+  const i = {
+    ...base,
+    hours: 2,
+    minutes: 0,
+    gi: "untrained" as const,
+    weightKg: 76,
+    tempC: 27,
+  };
+  const r = buildRecipe(i);
+  assert.equal(r.gelCount, 0, `got ${r.gelCount} gels`);
+  assert.equal(r.mixBottles, 2);
+  assert.ok(r.unmetCarbG < 6, `unmet ${r.unmetCarbG} g`);
+});
+
+test("bottle allocation: still adds gels for a real carb gap", () => {
+  // moderate, 2h at 90 g/hr = 180 g; mix alone tops out ~146 g — a 34 g
+  // gap is worth gels
+  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  assert.ok(buildRecipe(i).gelCount > 0);
+});
+
 test("bottle allocation: flags when carried plain water can't cover gel water", () => {
   // huge carb target, small bottles -> many gels, nowhere near enough plain water
   const i = { ...base, customCarb: 120, hours: 4, minutes: 0, bottleCount: 1, bottleSizeMl: 500 };
