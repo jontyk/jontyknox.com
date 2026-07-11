@@ -154,7 +154,11 @@ export function buildRecipe(i: FuelInputs): Recipe {
   // reserved from the SAME carried bottles — no phantom extras. The gut
   // caps gel frequency at ~2/hr. Among plans, minimize unmet carbs, then
   // use the fewest gels.
-  const gelCap = Math.floor(MAX_GELS_PER_HR * durH);
+  // Gels alternate with mix sips on the 20-min schedule (one action per
+  // interval), which limits how many fit: every other slot from 40 min on.
+  const nStepsForGels = Math.max(1, Math.round((durH * 60 - STEP_MIN) / STEP_MIN));
+  const gelSlots = Math.ceil((nStepsForGels - Math.min(nStepsForGels, 2) + 1) / 2);
+  const gelCap = Math.min(Math.floor(MAX_GELS_PER_HR * durH), gelSlots);
   const evaluate = (g: number) => {
     const gelWaterMl = g * GEL_WATER_ML;
     const plainBottles =
@@ -253,31 +257,30 @@ export function buildSchedule(i: FuelInputs): ScheduleRow[] {
   // Last sip lands one step before the end — a drink at the finish can't be
   // absorbed in time to fuel the ride.
   const nSteps = Math.max(1, Math.round((durMin - STEP_MIN) / STEP_MIN));
-  const units = PRE_FRACTION + nSteps;
 
-  const portion = (frac: number, label: string, timeMin: number): ScheduleRow => ({
-    label,
-    timeMin,
-    drinkMl: Math.round(recipe.totalWaterMl * frac),
-    carbG: round1(recipe.drinkCarbG * frac),
-    gels: 0,
-    sodiumMg: Math.round(recipe.sodiumMg * frac),
-  });
-
-  const rows: ScheduleRow[] = [portion(PRE_FRACTION / units, "Pre-Start", 0)];
+  const rows: ScheduleRow[] = [
+    { label: "Pre-Start", timeMin: 0, drinkMl: 0, carbG: 0, gels: 0, sodiumMg: 0 },
+  ];
   for (let s = 1; s <= nSteps; s++) {
-    rows.push(portion(1 / units, hhmm(s * STEP_MIN), s * STEP_MIN));
+    rows.push({ label: hhmm(s * STEP_MIN), timeMin: s * STEP_MIN, drinkMl: 0, carbG: 0, gels: 0, sodiumMg: 0 });
   }
 
-  // Spread gels evenly across the ride, but never before 40 minutes — the
-  // first gel is best taken 30-45 min in, then one every 30-45 min.
+  // Place gels first: every other interval from 40 min on, so they always
+  // alternate with mix sips (first gel 30-45 min in, then every ~40 min).
   const firstStep = Math.min(nSteps, 2); // step 2 = 40 min
   for (let g = 1; g <= recipe.gelCount; g++) {
-    const step =
-      recipe.gelCount === 1
-        ? Math.round((firstStep + nSteps) / 2)
-        : firstStep + Math.round(((g - 1) * (nSteps - firstStep)) / (recipe.gelCount - 1));
-    rows[Math.min(nSteps, Math.max(firstStep, step))].gels += 1;
+    rows[Math.min(nSteps, firstStep + 2 * (g - 1))].gels += 1;
+  }
+
+  // One action per interval: a gel row gets no mix sip, so the mix spreads
+  // over the remaining rows (pre-start counts as a part-sized sip).
+  const sipRows = rows.filter((r) => r.gels === 0);
+  const units = sipRows.reduce((a, r) => a + (r.label === "Pre-Start" ? PRE_FRACTION : 1), 0);
+  for (const r of sipRows) {
+    const frac = (r.label === "Pre-Start" ? PRE_FRACTION : 1) / units;
+    r.drinkMl = Math.round(recipe.totalWaterMl * frac);
+    r.carbG = round1(recipe.drinkCarbG * frac);
+    r.sodiumMg = Math.round(recipe.sodiumMg * frac);
   }
   return rows;
 }

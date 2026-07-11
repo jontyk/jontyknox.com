@@ -323,7 +323,7 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
     }
     if (recipe.unmetCarbG > 10) {
       warnings.push(
-        `~${Math.round(recipe.unmetCarbG)} g of the carb target fits neither the drink nor a sensible gel rate (~2/hr) — lower the target or add solid food.`,
+        `~${Math.round(recipe.unmetCarbG)} g of the carb target doesn't fit in the bottles or the gel schedule — carry another bottle, lower the target, or add solid food.`,
       );
     }
     warn.hidden = warnings.length === 0;

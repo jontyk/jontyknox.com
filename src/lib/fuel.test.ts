@@ -128,6 +128,19 @@ test("buildRecipe respects the ~2 gels/hr gut ceiling and reports unmet carbs", 
   assert.ok(r.unmetCarbG > 0, `got ${r.unmetCarbG}`);
 });
 
+test("buildSchedule never mixes a gel and a mix sip in the same interval", () => {
+  // a scenario with several gels
+  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  const rows = buildSchedule(i);
+  for (const r of rows) {
+    assert.ok(!(r.gels > 0 && r.drinkMl > 0), `${r.label} has gel AND mix sip`);
+  }
+  // mix water still all gets drunk
+  const mlSum = rows.reduce((a, r) => a + r.drinkMl, 0);
+  const recipe = buildRecipe(i);
+  assert.ok(Math.abs(mlSum - recipe.totalWaterMl) < 5, `sum ${mlSum} vs ${recipe.totalWaterMl}`);
+});
+
 test("buildSchedule spreads gels across mid-ride rows and totals match", () => {
   const i = { ...base, customCarb: 120, weightKg: 55, tempC: 5, intensity: "z60" as const };
   const recipe = buildRecipe(i);
@@ -205,21 +218,34 @@ test("fluid plan is capped by carried bottles and flags the refill shortfall", (
 });
 
 test("bottle allocation: gel water comes from the carried bottles, not a phantom extra", () => {
-  // 2h at 90 g/hr with 2x750: can't fit 180 g in the mix alone, so one
-  // bottle must go plain for the gels' water
-  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  // 2h at 90 g/hr with 3x750: two bottles of mix can't hold 180 g, so the
+  // third goes plain for the gels' water
+  const i = {
+    ...base,
+    hours: 2,
+    minutes: 0,
+    gi: "moderate" as const,
+    weightKg: 76,
+    tempC: 27,
+    bottleCount: 3,
+  };
   const r = buildRecipe(i);
   assert.ok(r.gelCount > 0, `got ${r.gelCount} gels`);
   assert.ok(r.plainBottles >= 1, `got ${r.plainBottles} plain bottles`);
   assert.equal(r.gelWaterShortMl, 0, `short ${r.gelWaterShortMl} ml`);
   assert.ok(r.plainBottles * r.bottleSizeMl >= r.gelCount * 150 - 1);
+  // and the carb target is essentially covered
+  assert.ok(r.unmetCarbG < 15, `unmet ${r.unmetCarbG} g`);
 });
 
-test("bottle allocation: prefers covering the carb target over avoiding gels", () => {
+test("bottle allocation: skips gels when a plain bottle would cost more carbs than gels add", () => {
+  // 2h at 90 g/hr with only 2x750: giving up a mix bottle for gel water
+  // loses more drink carbs than 2 gels return, so mix both and report the gap
   const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
   const r = buildRecipe(i);
-  // 180 g target: mix-only tops out at ~146 g; with gels the plan gets close
-  assert.ok(r.unmetCarbG < 15, `unmet ${r.unmetCarbG} g`);
+  assert.equal(r.gelCount, 0, `got ${r.gelCount} gels`);
+  assert.equal(r.mixBottles, 2);
+  assert.ok(r.unmetCarbG > 20, `unmet ${r.unmetCarbG} g`);
 });
 
 test("bottle allocation: doesn't add gels to close a trivial carb gap", () => {
@@ -239,10 +265,16 @@ test("bottle allocation: doesn't add gels to close a trivial carb gap", () => {
   assert.ok(r.unmetCarbG < 6, `unmet ${r.unmetCarbG} g`);
 });
 
-test("bottle allocation: still adds gels for a real carb gap", () => {
-  // moderate, 2h at 90 g/hr = 180 g; mix alone tops out ~146 g — a 34 g
-  // gap is worth gels
-  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+test("bottle allocation: still adds gels for a real carb gap when a bottle is spare", () => {
+  const i = {
+    ...base,
+    hours: 2,
+    minutes: 0,
+    gi: "moderate" as const,
+    weightKg: 76,
+    tempC: 27,
+    bottleCount: 3,
+  };
   assert.ok(buildRecipe(i).gelCount > 0);
 });
 
