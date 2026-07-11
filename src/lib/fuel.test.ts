@@ -21,6 +21,8 @@ const base: FuelInputs = {
   sweatSodium: "typical",
   customCarb: null,
   ratio: "1:0.8",
+  bottleCount: 2,
+  bottleSizeMl: 750,
 };
 
 test("suggestCarbs uses GI-training base rates", () => {
@@ -58,7 +60,9 @@ test("fluidPlan replaces ~60% of loss, clamped, with a deficit", () => {
   assert.ok(p.plannedMlPerHr >= 300 && p.plannedMlPerHr <= 750);
   assert.ok(p.deficitMlPerHr >= 0);
   const hot = fluidPlan({ ...base, tempC: 40, weightKg: 95, intensity: "z90" });
-  assert.equal(hot.plannedMlPerHr, 750);
+  // gut cap is 750/hr, but carrying 2x750 over 2:40 caps planned intake lower
+  assert.equal(hot.idealMlPerHr, 750);
+  assert.equal(hot.plannedMlPerHr, Math.round(1500 / (2 + 40 / 60)));
 });
 
 test("sodiumPlan scales with sweat rate and sweat-sodium preset", () => {
@@ -89,8 +93,8 @@ test("buildRecipe caps drink concentration by GI training and fills the surplus 
   assert.ok(dry.concentrationPct <= 12, `got ${dry.concentrationPct}`);
   assert.ok(dry.gelCount > 0, `got ${dry.gelCount}`);
   assert.equal(dry.gelCarbG, dry.gelCount * 25);
-  // gels + drink together hit the total target exactly
-  assert.ok(Math.abs(dry.drinkCarbG + dry.gelCarbG - dry.totalCarbG) < 0.2);
+  // every carb is accounted for: drink + gels + explicitly-unmet remainder
+  assert.ok(Math.abs(dry.drinkCarbG + dry.gelCarbG + dry.unmetCarbG - dry.totalCarbG) < 0.2);
   // ingredient split applies to the drink carbs only
   assert.ok(Math.abs(dry.maltoG + dry.fructoseG - dry.drinkCarbG) < 0.2);
 });
@@ -111,10 +115,17 @@ test("buildRecipe prefers gels over a maxed-out drink (drink lands below the cap
 });
 
 test("buildRecipe keeps all carbs in the drink when they fit under the cap", () => {
-  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35, customCarb: 50 });
+  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35, customCarb: 25 });
   assert.equal(easy.gelCount, 0);
   assert.equal(easy.gelCarbG, 0);
   assert.ok(Math.abs(easy.drinkCarbG - easy.totalCarbG) < 0.2);
+});
+
+test("buildRecipe respects the ~2 gels/hr gut ceiling and reports unmet carbs", () => {
+  // absurd target on a short ride: gels can't cover it all
+  const r = buildRecipe({ ...base, hours: 1, minutes: 0, customCarb: 150 });
+  assert.ok(r.gelCount <= 2, `got ${r.gelCount}`);
+  assert.ok(r.unmetCarbG > 0, `got ${r.unmetCarbG}`);
 });
 
 test("buildSchedule spreads gels across mid-ride rows and totals match", () => {
@@ -149,15 +160,56 @@ test("buildSchedule spaces gels at least 40 minutes apart when they fit", () => 
   }
 });
 
-test("buildRecipe caps drink sodium at 700 mg/L and reports the unreplaced remainder", () => {
+test("buildRecipe caps drink sodium at 700 mg/L of mix and reports the unreplaced remainder", () => {
   // salty sweater, very hot: uncapped would exceed 1000 mg/L
   const hot = buildRecipe({ ...base, tempC: 38, sweatSodium: "salty" });
-  const mgPerL = hot.sodiumMg / (hot.totalWaterMl / 1000);
-  assert.ok(mgPerL <= 700 + 1, `got ${mgPerL} mg/L`);
+  if (hot.totalWaterMl > 0) {
+    const mgPerL = hot.sodiumMg / (hot.totalWaterMl / 1000);
+    assert.ok(mgPerL <= 700 + 1, `got ${mgPerL} mg/L`);
+  }
   assert.ok(hot.sodiumShortfallMg > 0, `got ${hot.sodiumShortfallMg}`);
-  // mild day: no cap, no shortfall
-  const mild = buildRecipe({ ...base, tempC: 12, sweatSodium: "low" });
+  // short mild ride: sodium fits in the mix, no shortfall
+  const mild = buildRecipe({ ...base, hours: 1, minutes: 0, tempC: 12, sweatSodium: "low" });
   assert.equal(mild.sodiumShortfallMg, 0);
+});
+
+test("bottle allocation: recommends a mix/plain split within carried fluid", () => {
+  const r = buildRecipe(base);
+  assert.equal(r.bottleSizeMl, 750);
+  assert.equal(r.mixBottles + r.plainBottles, 2);
+  // mix fits in the bottles assigned to it (bottles may be part-filled)
+  assert.ok(r.totalWaterMl <= r.mixBottles * 750 + 1);
+  // can't plan to drink more mix than the fluid target allows
+  const intake = fluidPlan(base).plannedMlPerHr * (2 + 40 / 60);
+  assert.ok(r.totalWaterMl <= intake + 2);
+});
+
+test("bottle allocation: keeps enough plain water for the gels it schedules", () => {
+  const r = buildRecipe({ ...base, gi: "moderate" });
+  if (r.gelCount > 0 && r.gelWaterShortMl === 0) {
+    assert.ok(r.plainBottles * r.bottleSizeMl >= r.gelCount * 150 - 1);
+  }
+  // carbs always add up: drink + gels = target
+  assert.ok(Math.abs(r.drinkCarbG + r.gelCarbG - r.totalCarbG) < 0.2);
+});
+
+test("fluid plan is capped by carried bottles and flags the refill shortfall", () => {
+  // long hot ride, tiny carrying capacity
+  const i = { ...base, hours: 5, minutes: 0, tempC: 30, bottleCount: 1, bottleSizeMl: 500 };
+  const p = fluidPlan(i);
+  assert.ok(p.plannedMlPerHr * 5 <= 500 + 1, `planned ${p.plannedMlPerHr}/hr exceeds carried`);
+  const r = buildRecipe(i);
+  assert.ok(r.refillShortfallMl > 0, `got ${r.refillShortfallMl}`);
+  // comfortable case: no refill needed
+  assert.equal(buildRecipe(base).refillShortfallMl, 0);
+});
+
+test("bottle allocation: flags when carried plain water can't cover gel water", () => {
+  // huge carb target, small bottles -> many gels, nowhere near enough plain water
+  const i = { ...base, customCarb: 120, hours: 4, minutes: 0, bottleCount: 1, bottleSizeMl: 500 };
+  const r = buildRecipe(i);
+  assert.ok(r.gelCount > 0);
+  assert.ok(r.gelWaterShortMl > 0, `got ${r.gelWaterShortMl}`);
 });
 
 test("buildSchedule emits a pre-start drink plus 20-min steps that sum to the drink totals", () => {
