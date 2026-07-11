@@ -258,31 +258,36 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
 
     const recipeEl = document.getElementById("r-recipe")!;
     const items: string[] = [];
+    const per = (n: number) => Math.round((n / recipe.mixBottles) * 10) / 10;
     if (recipe.mixBottles > 0) {
       const perBottleMl = Math.round(recipe.totalWaterMl / recipe.mixBottles);
-      const fill =
-        perBottleMl >= recipe.bottleSizeMl - 5 ? "full" : `~${perBottleMl} ml each`;
+      const fill = perBottleMl >= recipe.bottleSizeMl - 5 ? "full" : `~${perBottleMl} ml each`;
       items.push(
-        `Fill ${recipe.mixBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.mixBottles > 1 ? "s" : ""} with mix (${fill}) — ${(recipe.totalWaterMl / 1000).toFixed(2)} L water total`,
+        `Fill ${recipe.mixBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.mixBottles > 1 ? "s" : ""} with mix (${fill})`,
       );
+      const perParts =
+        recipe.tableSugarG > 0
+          ? `${per(recipe.tableSugarG)} g table sugar (sucrose)`
+          : `${per(recipe.maltoG)} g maltodextrin + ${per(recipe.fructoseG)} g fructose`;
+      items.push(
+        `${recipe.mixBottles > 1 ? "Each mix bottle" : "The mix bottle"}: ${perParts} + ${per(recipe.saltG)} g salt — ${recipe.concentrationPct}% carbs`,
+      );
+      if (recipe.mixBottles > 1) {
+        const totalParts =
+          recipe.tableSugarG > 0
+            ? `${recipe.tableSugarG} g sugar`
+            : `${recipe.maltoG} g maltodextrin, ${recipe.fructoseG} g fructose`;
+        items.push(`Totals: ${totalParts}, ${recipe.saltG} g salt (~${recipe.saltTsp} tsp), ${(recipe.totalWaterMl / 1000).toFixed(2)} L water`);
+      }
     }
     if (recipe.plainBottles > 0) {
       items.push(
-        `${recipe.plainBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.plainBottles > 1 ? "s" : ""} of plain water — for gels and drinking to thirst`,
+        `Fill ${recipe.plainBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.plainBottles > 1 ? "s" : ""} with plain water — for gels and drinking to thirst`,
       );
     }
-    if (recipe.tableSugarG > 0) {
-      items.push(`${recipe.tableSugarG} g table sugar (sucrose)`);
-    } else if (recipe.maltoG > 0 || recipe.fructoseG > 0) {
-      items.push(`${recipe.maltoG} g maltodextrin`, `${recipe.fructoseG} g fructose`);
-    }
-    if (recipe.saltG > 0) {
-      items.push(`${recipe.saltG} g table salt (~${recipe.saltTsp} tsp)`);
-    }
-    items.push(`Concentration: ${recipe.concentrationPct}%`);
     if (recipe.gelCount > 0) {
       items.push(
-        `Plus ${recipe.gelCount} × standard gel (25 g carbs each, ${recipe.gelCarbG} g total) — take each with ~${GEL_WATER_ML} ml plain water, not the mix`,
+        `Carry ${recipe.gelCount} × standard gel (25 g carbs each, ${recipe.gelCarbG} g total) — take each with ~${GEL_WATER_ML} ml of the plain water, not the mix`,
       );
     }
 
