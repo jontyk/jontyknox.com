@@ -50,6 +50,22 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
               <option value="z90">90%+</option>
             </select>
           </label>
+          <label>Bottles carried
+            <select name="bottleCount">
+              <option value="1">1 bottle</option>
+              <option value="2" selected>2 bottles</option>
+              <option value="3">3 bottles</option>
+              <option value="4">4 bottles</option>
+            </select>
+          </label>
+          <label>Bottle size
+            <select name="bottleSizeMl">
+              <option value="500">500 ml</option>
+              <option value="620">620 ml</option>
+              <option value="750" selected>750 ml</option>
+              <option value="950">950 ml</option>
+            </select>
+          </label>
           <label>Body weight (kg) <input type="number" name="weightKg" min="30" max="150" step="1" value="72" /></label>
           <label>Temperature (°C) <input type="number" name="tempC" min="-10" max="45" step="1" value="15" /></label>
         </fieldset>
@@ -174,6 +190,8 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
       sweatSodium: String(d.get("sweatSodium")) as SweatSodium,
       customCarb: customRaw === "" ? null : Number(customRaw),
       ratio: String(d.get("ratio")) as Ratio,
+      bottleCount: num("bottleCount"),
+      bottleSizeMl: num("bottleSizeMl"),
     };
   }
 
@@ -239,13 +257,28 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
     }
 
     const recipeEl = document.getElementById("r-recipe")!;
-    const items: string[] = [`${(recipe.totalWaterMl / 1000).toFixed(2)} L water`];
+    const items: string[] = [];
+    if (recipe.mixBottles > 0) {
+      const perBottleMl = Math.round(recipe.totalWaterMl / recipe.mixBottles);
+      const fill =
+        perBottleMl >= recipe.bottleSizeMl - 5 ? "full" : `~${perBottleMl} ml each`;
+      items.push(
+        `Fill ${recipe.mixBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.mixBottles > 1 ? "s" : ""} with mix (${fill}) — ${(recipe.totalWaterMl / 1000).toFixed(2)} L water total`,
+      );
+    }
+    if (recipe.plainBottles > 0) {
+      items.push(
+        `${recipe.plainBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.plainBottles > 1 ? "s" : ""} of plain water — for gels and drinking to thirst`,
+      );
+    }
     if (recipe.tableSugarG > 0) {
       items.push(`${recipe.tableSugarG} g table sugar (sucrose)`);
-    } else {
+    } else if (recipe.maltoG > 0 || recipe.fructoseG > 0) {
       items.push(`${recipe.maltoG} g maltodextrin`, `${recipe.fructoseG} g fructose`);
     }
-    items.push(`${recipe.saltG} g table salt (~${recipe.saltTsp} tsp)`);
+    if (recipe.saltG > 0) {
+      items.push(`${recipe.saltG} g table salt (~${recipe.saltTsp} tsp)`);
+    }
     items.push(`Concentration: ${recipe.concentrationPct}%`);
     if (recipe.gelCount > 0) {
       items.push(
@@ -263,17 +296,33 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
     recipeEl.innerHTML = items.map((t) => `<li>${t}</li>`).join("");
 
     const warn = document.getElementById("r-warn")!;
+    const warnings: string[] = [];
     if (recipe.warning === "strong") {
-      warn.hidden = false;
-      warn.textContent =
-        "Very concentrated (>12%) — raises GI-distress risk. Add water, split into stronger + plain-water bottles, or take some carbs as food/gels.";
+      warnings.push(
+        "Very concentrated (>12%) — raises GI-distress risk. Add water, split into stronger + plain-water bottles, or take some carbs as food/gels.",
+      );
     } else if (recipe.warning === "soft") {
-      warn.hidden = false;
-      warn.textContent =
-        "Above isotonic (>8%) — fine if gut-trained, especially with a glucose+fructose blend, but empties slower than a 6–8% drink.";
-    } else {
-      warn.hidden = true;
+      warnings.push(
+        "Above isotonic (>8%) — fine if gut-trained, especially with a glucose+fructose blend, but empties slower than a 6–8% drink.",
+      );
     }
+    if (recipe.refillShortfallMl > 0) {
+      warnings.push(
+        `Your bottles carry ~${recipe.refillShortfallMl} ml less than the ideal fluid plan — plan a refill stop or add a bottle.`,
+      );
+    }
+    if (recipe.gelWaterShortMl > 0) {
+      warnings.push(
+        `You're ~${recipe.gelWaterShortMl} ml short of plain water for the gels — refill mid-ride or take gels near water stops.`,
+      );
+    }
+    if (recipe.unmetCarbG > 10) {
+      warnings.push(
+        `~${Math.round(recipe.unmetCarbG)} g of the carb target fits neither the drink nor a sensible gel rate (~2/hr) — lower the target or add solid food.`,
+      );
+    }
+    warn.hidden = warnings.length === 0;
+    warn.innerHTML = warnings.map((w) => `<span>${w}</span>`).join("<br />");
 
     const tbody = document.getElementById("r-schedule")!;
     let mlSoFar = 0;

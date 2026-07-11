@@ -17,6 +17,12 @@ export interface FuelInputs {
   sweatSodium: SweatSodium;
   customCarb: number | null; // g/hr, null/0 = use suggestion
   ratio: Ratio;
+  bottleCount: number;
+  bottleSizeMl: number;
+}
+
+export function carriedMl(i: FuelInputs): number {
+  return Math.max(0, i.bottleCount) * Math.max(0, i.bottleSizeMl);
 }
 
 const CARB_BASE: Record<GiTraining, number> = { untrained: 60, moderate: 90, well: 105 };
@@ -55,15 +61,20 @@ export function estimateSweatLPerHr(i: FuelInputs): number {
 
 export interface FluidPlan {
   lossMlPerHr: number;
+  idealMlPerHr: number;
   plannedMlPerHr: number;
   deficitMlPerHr: number;
 }
 
 export function fluidPlan(i: FuelInputs): FluidPlan {
+  const durH = durationHours(i);
   const lossMlPerHr = estimateSweatLPerHr(i) * 1000;
-  const planned = Math.min(FLUID_MAX_ML, Math.max(FLUID_MIN_ML, lossMlPerHr * FLUID_REPLACE_FRACTION));
+  const ideal = Math.min(FLUID_MAX_ML, Math.max(FLUID_MIN_ML, lossMlPerHr * FLUID_REPLACE_FRACTION));
+  // You can only drink what you carry.
+  const planned = durH > 0 ? Math.min(ideal, carriedMl(i) / durH) : ideal;
   return {
     lossMlPerHr: Math.round(lossMlPerHr),
+    idealMlPerHr: Math.round(ideal),
     plannedMlPerHr: Math.round(planned),
     deficitMlPerHr: Math.max(0, Math.round(lossMlPerHr - planned)),
   };
@@ -95,6 +106,8 @@ const DRINK_CONC_BY_GI: Record<GiTraining, number> = {
 // plain water — not the carb drink — to keep gut concentration absorbable.
 export const GEL_CARB_G = 25;
 export const GEL_WATER_ML = 150;
+// Practical gut ceiling on gel frequency (one every ~30 min).
+const MAX_GELS_PER_HR = 2;
 
 // Drink sodium above ~700 mg/L hurts palatability and absorption
 // (optimal range in the literature is ~230-690 mg/L; avoid >1000).
@@ -105,7 +118,13 @@ export interface Recipe {
   drinkCarbG: number;
   gelCount: number;
   gelCarbG: number;
-  totalWaterMl: number;
+  totalWaterMl: number; // water in the mix bottles
+  bottleSizeMl: number;
+  mixBottles: number;
+  plainBottles: number;
+  refillShortfallMl: number; // ideal intake beyond what the bottles carry
+  gelWaterShortMl: number; // gel water the carried plain bottles can't cover
+  unmetCarbG: number; // carbs that fit neither the drink nor the gel-rate cap
   tableSugarG: number; // >0 only for the 1:1 (sucrose) recipe
   maltoG: number;
   fructoseG: number;
@@ -123,19 +142,38 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 export function buildRecipe(i: FuelInputs): Recipe {
   const durH = durationHours(i);
   const totalCarbG = effectiveCarb(i) * durH;
-  const totalWaterMl = fluidPlan(i).plannedMlPerHr * durH;
+  const plan = fluidPlan(i);
+  const intakeMl = plan.plannedMlPerHr * durH;
+  const carried = carriedMl(i);
+  const refillShortfallMl = Math.max(0, Math.round(plan.idealMlPerHr * durH - carried));
+  const cap = DRINK_CONC_BY_GI[i.gi];
+
+  // Mix water: as much as helps (fewest gels), limited by what you'll
+  // actually drink, what you can carry, and what the carbs need at the cap.
+  // Bottles can be part-filled, but a bottle is either mix or plain.
+  const waterForAllCarbs = cap > 0 ? totalCarbG / cap : 0;
+  const totalWaterMl = Math.min(intakeMl, carried, waterForAllCarbs);
+  const mixBottles =
+    totalWaterMl > 0 ? Math.min(i.bottleCount, Math.ceil(totalWaterMl / i.bottleSizeMl)) : 0;
+  const plainBottles = i.bottleCount - mixBottles;
+
+  // Whole gels cover the carbs the mix can't hold, but the gut can only
+  // handle so many — beyond ~2 gels/hr the remainder is flagged as unmet.
+  const surplusG = Math.max(0, totalCarbG - totalWaterMl * cap);
+  const gelsNeeded = surplusG > 0.1 ? Math.ceil(surplusG / GEL_CARB_G) : 0;
+  const gelCount = Math.min(gelsNeeded, Math.floor(MAX_GELS_PER_HR * durH));
+  const gelCarbG = gelCount * GEL_CARB_G;
+  const drinkCarbG = Math.min(Math.max(0, totalCarbG - gelCarbG), totalWaterMl * cap);
+  const unmetCarbG = Math.max(0, totalCarbG - drinkCarbG - gelCarbG);
+  const gelWaterShortMl = Math.max(
+    0,
+    Math.round(gelCount * GEL_WATER_ML - plainBottles * i.bottleSizeMl),
+  );
+
   const sodiumTargetMg = sodiumPlan(i).targetMgPerHr * durH;
   const sodiumCapMg = (totalWaterMl / 1000) * DRINK_SODIUM_MAX_MG_PER_L;
   const sodiumMg = Math.min(sodiumTargetMg, sodiumCapMg);
   const sodiumShortfallMg = Math.max(0, sodiumTargetMg - sodiumMg);
-
-  // Whole gels absorb any carbs the drink can't hold at the rider's cap;
-  // rounding up means gels are preferred over a maxed-out drink.
-  const maxDrinkCarbG = totalWaterMl * DRINK_CONC_BY_GI[i.gi];
-  const surplusG = Math.max(0, totalCarbG - maxDrinkCarbG);
-  const gelCount = surplusG > 0 ? Math.ceil(surplusG / GEL_CARB_G) : 0;
-  const gelCarbG = gelCount * GEL_CARB_G;
-  const drinkCarbG = Math.max(0, totalCarbG - gelCarbG);
 
   let tableSugarG = 0;
   let maltoG = 0;
@@ -159,6 +197,12 @@ export function buildRecipe(i: FuelInputs): Recipe {
     gelCount,
     gelCarbG: round1(gelCarbG),
     totalWaterMl: Math.round(totalWaterMl),
+    bottleSizeMl: i.bottleSizeMl,
+    mixBottles,
+    plainBottles,
+    refillShortfallMl,
+    gelWaterShortMl,
+    unmetCarbG: round1(unmetCarbG),
     tableSugarG: round1(tableSugarG),
     maltoG: round1(maltoG),
     fructoseG: round1(fructoseG),
