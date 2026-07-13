@@ -115,7 +115,7 @@ test("buildRecipe prefers gels over a maxed-out drink (drink lands below the cap
 });
 
 test("buildRecipe keeps all carbs in the drink when they fit under the cap", () => {
-  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 35, customCarb: 25 });
+  const easy = buildRecipe({ ...base, gi: "untrained", tempC: 18, customCarb: 25 });
   assert.equal(easy.gelCount, 0);
   assert.equal(easy.gelCarbG, 0);
   assert.ok(Math.abs(easy.drinkCarbG - easy.totalCarbG) < 0.2);
@@ -241,7 +241,7 @@ test("bottle allocation: gel water comes from the carried bottles, not a phantom
 test("bottle allocation: skips gels when a plain bottle would cost more carbs than gels add", () => {
   // 2h at 90 g/hr with only 2x750: giving up a mix bottle for gel water
   // loses more drink carbs than 2 gels return, so mix both and report the gap
-  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 76, tempC: 27 };
+  const i = { ...base, hours: 2, minutes: 0, gi: "moderate" as const, weightKg: 85, tempC: 24 };
   const r = buildRecipe(i);
   assert.equal(r.gelCount, 0, `got ${r.gelCount} gels`);
   assert.equal(r.mixBottles, 2);
@@ -256,8 +256,8 @@ test("bottle allocation: doesn't add gels to close a trivial carb gap", () => {
     hours: 2,
     minutes: 0,
     gi: "untrained" as const,
-    weightKg: 76,
-    tempC: 27,
+    weightKg: 85,
+    tempC: 24,
   };
   const r = buildRecipe(i);
   assert.equal(r.gelCount, 0, `got ${r.gelCount} gels`);
@@ -311,4 +311,22 @@ test("buildSchedule still emits at least one mid-ride drink on short rides", () 
   assert.equal(rows[0].label, "Pre-Start");
   assert.ok(rows.length >= 2, `got ${rows.length} rows`);
   assert.ok(rows[rows.length - 1].timeMin < 30);
+});
+
+test("hot weather (>=25C) forces at least one plain water bottle", () => {
+  const hot = buildRecipe({ ...base, tempC: 25 });
+  assert.ok(hot.plainBottles >= 1, `got ${hot.plainBottles} plain bottles`);
+  // carbs displaced from the mix bottle come back as gels
+  assert.ok(hot.gelCount > 0 || hot.unmetCarbG <= hot.totalCarbG * 0.05);
+});
+
+test("below 25C an all-mix bottle plan is still allowed", () => {
+  const mild = buildRecipe({ ...base, hours: 1, minutes: 30, tempC: 20, customCarb: 60 });
+  assert.equal(mild.plainBottles, 0);
+});
+
+test("hot weather with a single bottle keeps it as mix", () => {
+  const one = buildRecipe({ ...base, tempC: 32, bottleCount: 1, bottleSizeMl: 750 });
+  assert.equal(one.plainBottles, 0);
+  assert.equal(one.mixBottles, 1);
 });

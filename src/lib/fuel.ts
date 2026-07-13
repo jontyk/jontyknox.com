@@ -109,6 +109,11 @@ export const GEL_WATER_ML = 150;
 // Practical gut ceiling on gel frequency (one every ~30 min).
 const MAX_GELS_PER_HR = 2;
 
+// At >=25C fluid replacement becomes the priority and concentrated carb
+// drinks are a GI-distress risk (guidance: hypotonic fluid in heat), so one
+// carried bottle is reserved as plain water whenever a spare bottle exists.
+export const HOT_TEMP_C = 25;
+
 // Drink sodium above ~700 mg/L hurts palatability and absorption
 // (optimal range in the literature is ~230-690 mg/L; avoid >1000).
 const DRINK_SODIUM_MAX_MG_PER_L = 700;
@@ -161,8 +166,11 @@ export function buildRecipe(i: FuelInputs): Recipe {
   const gelCap = Math.min(Math.floor(MAX_GELS_PER_HR * durH), gelSlots);
   const evaluate = (g: number) => {
     const gelWaterMl = g * GEL_WATER_ML;
-    const plainBottles =
-      g > 0 ? Math.min(i.bottleCount, Math.max(1, Math.ceil(gelWaterMl / i.bottleSizeMl))) : 0;
+    const minPlainBottles = i.tempC >= HOT_TEMP_C && i.bottleCount >= 2 ? 1 : 0;
+    const plainBottles = Math.max(
+      minPlainBottles,
+      g > 0 ? Math.min(i.bottleCount, Math.max(1, Math.ceil(gelWaterMl / i.bottleSizeMl))) : 0,
+    );
     const mixBottles = i.bottleCount - plainBottles;
     const gelCarbG = g * GEL_CARB_G;
     // Use the full fluid budget for mix — more water means a weaker,
