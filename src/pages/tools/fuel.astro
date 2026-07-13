@@ -147,6 +147,7 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
     buildSchedule,
     GEL_CARB_G,
     GEL_WATER_ML,
+    HOT_TEMP_C,
     type FuelInputs,
     type Intensity,
     type GiTraining,
@@ -281,8 +282,12 @@ import BlogLayout from "../../layouts/BlogLayout.astro";
       }
     }
     if (recipe.plainBottles > 0) {
+      const hotNote =
+        i.tempC >= HOT_TEMP_C
+          ? ` (at ≥${HOT_TEMP_C} °C one water bottle is reserved: plain fluid empties faster than carb mix when hydration is the priority)`
+          : "";
       items.push(
-        `Fill ${recipe.plainBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.plainBottles > 1 ? "s" : ""} with plain water — for gels and drinking to thirst`,
+        `Fill ${recipe.plainBottles} × ${recipe.bottleSizeMl} ml bottle${recipe.plainBottles > 1 ? "s" : ""} with plain water — for gels and drinking to thirst${hotNote}`,
       );
     }
     if (recipe.gelCount > 0) {
