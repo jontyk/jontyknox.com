@@ -46,6 +46,7 @@ const base: CgtInputs = {
   monthly: 500,
   sharesReturn: 0.08,
   propertyReturn: 0.06,
+  propertyLvr: 0,
   inflation: 0.026,
 };
 
@@ -73,4 +74,24 @@ test("higher property growth lifts the property line", () => {
   const low = projectStrategies({ ...base, propertyReturn: 0.04 })[29];
   const high = projectStrategies({ ...base, propertyReturn: 0.09 })[29];
   assert.ok(high.propertyNet > low.propertyNet);
+});
+
+test("leverage multiplies the property gain (and its CGT)", () => {
+  // One parcel intuition: at 80% LVR each deposit dollar controls $5 of
+  // property, so the nominal gain per parcel is 5x the unleveraged gain.
+  const flat = projectStrategies(base)[29];
+  const geared = projectStrategies({ ...base, propertyLvr: 0.8 })[29];
+  const flatGain = flat.propertyValue - flat.contributed;
+  const gearedGain = geared.propertyValue - geared.contributed;
+  assert.ok(Math.abs(gearedGain - flatGain * 5) < 1, `${gearedGain} vs ${flatGain * 5}`);
+  // After-tax outcome is far higher, but tax scales with the gain too
+  assert.ok(geared.propertyNet > flat.propertyNet * 2);
+  const flatTax = flat.propertyValue - flat.propertyNet;
+  assert.ok(Math.abs((geared.propertyValue - geared.propertyNet) - flatTax * 5) < 1);
+});
+
+test("modest leveraged growth beats strong unleveraged shares", () => {
+  // 6% property at 80% LVR should outrun 8% shares over 30 years
+  const p = projectStrategies({ ...base, propertyLvr: 0.8 })[29];
+  assert.ok(p.propertyNet > p.sharesOldNet);
 });
