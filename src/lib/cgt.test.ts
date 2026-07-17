@@ -90,6 +90,20 @@ test("leverage multiplies the property gain (and its CGT)", () => {
   assert.ok(Math.abs((geared.propertyValue - geared.propertyNet) - flatTax * 5) < 1);
 });
 
+test("existing house is taxed like shares: below new builds when growth beats inflation", () => {
+  const last = projectStrategies({ ...base, propertyReturn: 0.06, propertyLvr: 0.8 })[29];
+  assert.ok(last.existingNet < last.propertyNet);
+  // Same gross equity, different tax treatment
+  const propTax = last.propertyValue - last.propertyNet;
+  const existTax = last.propertyValue - last.existingNet;
+  assert.ok(existTax > propTax);
+});
+
+test("existing house pays no CGT when growth stays under inflation", () => {
+  const last = projectStrategies({ ...base, propertyReturn: 0.02, propertyLvr: 0.8 })[29];
+  assert.equal(last.existingNet, last.propertyValue);
+});
+
 test("modest leveraged growth beats strong unleveraged shares", () => {
   // 6% property at 80% LVR should outrun 8% shares over 30 years
   const p = projectStrategies({ ...base, propertyLvr: 0.8 })[29];
