@@ -11,6 +11,12 @@ export interface CgtInputs {
   sharesReturn: number;
   /** property annual valuation growth */
   propertyReturn: number;
+  /**
+   * loan-to-value ratio 0..0.9 — each deposit dollar controls 1/(1-LVR) of
+   * property on an interest-only loan, with rent assumed to cover interest
+   * and running costs (neutral gearing)
+   */
+  propertyLvr: number;
   inflation: number;
 }
 
@@ -91,9 +97,13 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
           shareGain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, hold);
       }
 
-      const propParcel = inputs.monthly * Math.pow(1 + inputs.propertyReturn, hold);
-      const propGain = propParcel - inputs.monthly;
-      propertyValue += propParcel;
+      // Each monthly deposit controls leverage x its value of property; the
+      // debt is repaid at sale, so equity = deposit + leverage x growth, and
+      // CGT falls on the whole leveraged nominal gain.
+      const leverage = 1 / (1 - inputs.propertyLvr);
+      const propGain =
+        inputs.monthly * leverage * (Math.pow(1 + inputs.propertyReturn, hold) - 1);
+      propertyValue += inputs.monthly + propGain;
       if (propGain > 0) propertyTax += propGain * oldEffectiveRate(m);
     }
 

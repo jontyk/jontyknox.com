@@ -25,6 +25,8 @@ export function mountCgtExplorer(): void {
         <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
       <label>Property growth <output></output>
         <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="6" /></label>
+      <label>Property gearing <output></output>
+        <input type="range" data-k="propLvr" min="0" max="90" step="5" value="80" /></label>
     </div>
     <p class="cgt-legend">
       <span><span class="swatch old"></span>Shares, old rules (50% discount)</span>
@@ -34,9 +36,11 @@ export function mountCgtExplorer(): void {
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax value by sale age: shares under the old CGT rules, shares under the new rules, and new-build property"></svg>
     <p class="cgt-readout"></p>
     <p class="cgt-note">The same monthly amount put to work three ways, sold in full at the age on the
-    x-axis. Assumes ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, share parcels acquired
-    under the post-July-2027 rules, and unleveraged property with no rent, costs or gearing — the property
-    line isolates the tax treatment and valuation growth only. Illustrative only — not financial advice.</p>`;
+    x-axis. Assumes ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, and share parcels acquired
+    under the post-July-2027 rules. Property is bought with each month's cash as deposit on an interest-only
+    loan at the chosen gearing, with rent assumed to cover interest and running costs — so the line shows
+    leveraged valuation growth net of CGT, before stamp duty, vacancies or rate risk. Illustrative only —
+    not financial advice.</p>`;
 
   const svg = host.querySelector("svg")!;
   const readout = host.querySelector(".cgt-readout")!;
@@ -53,6 +57,7 @@ export function mountCgtExplorer(): void {
       monthly: get("monthly"),
       sharesReturn: get("sharesRet") / 100,
       propertyReturn: get("propRet") / 100,
+      propertyLvr: get("propLvr") / 100,
       inflation: INFLATION,
     };
   }
@@ -64,6 +69,9 @@ export function mountCgtExplorer(): void {
       monthly: fmtFull(s.monthly),
       sharesRet: (s.sharesReturn * 100).toFixed(1) + "% p.a.",
       propRet: (s.propertyReturn * 100).toFixed(1) + "% p.a.",
+      propLvr: s.propertyLvr === 0
+        ? "cash, no loan"
+        : Math.round(s.propertyLvr * 100) + "% LVR (" + (1 / (1 - s.propertyLvr)).toFixed(1) + "x leverage)",
     };
     for (const slider of sliders)
       slider.parentElement!.querySelector("output")!.textContent = labels[slider.dataset.k!];
@@ -106,7 +114,9 @@ export function mountCgtExplorer(): void {
         : extra > 0
           ? `<strong class="cgt-delta">${fmtFull(extra)} to the tax office</strong>`
           : `<strong class="cgt-delta-win">${fmtFull(-extra)} better off</strong>`) +
-      `. New-build property at ${(s.propertyReturn * 100).toFixed(1)}% growth keeps <strong>${fmtFull(hp.propertyNet)}</strong>.`;
+      `. New-build property at ${(s.propertyReturn * 100).toFixed(1)}% growth${
+        s.propertyLvr > 0 ? `, geared ${(1 / (1 - s.propertyLvr)).toFixed(1)}x,` : ""
+      } keeps <strong>${fmtFull(hp.propertyNet)}</strong>.`;
   }
 
   svg.addEventListener("mousemove", (e) => {
