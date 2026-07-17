@@ -1,6 +1,6 @@
 // Interactive explorer for the CGT article. Mounts into #cgt-explorer if the
 // current page contains it; no-op elsewhere.
-import { projectPortfolio, marginalRate, type CgtPoint } from "./cgt.ts";
+import { projectStrategies, marginalRate, type CgtPoint } from "./cgt.ts";
 
 const W = 640;
 const H = 330;
@@ -21,22 +21,22 @@ export function mountCgtExplorer(): void {
         <input type="range" data-k="salary" min="45000" max="250000" step="5000" value="100000" /></label>
       <label>Invested per month <output></output>
         <input type="range" data-k="monthly" min="100" max="3000" step="100" value="500" /></label>
-      <label>Expected return <output></output>
-        <input type="range" data-k="ret" min="3" max="12" step="0.5" value="8" /></label>
-      <label>Portfolio mix <output></output>
-        <input type="range" data-k="mix" min="0" max="100" step="5" value="100" /></label>
+      <label>Shares return <output></output>
+        <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
+      <label>Property growth <output></output>
+        <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="6" /></label>
     </div>
     <p class="cgt-legend">
-      <span><span class="swatch old"></span>Old rules (50% discount)</span>
-      <span><span class="swatch new"></span>New rules (from July 2027)</span>
-      <span>x-axis: age at sale</span>
+      <span><span class="swatch old"></span>Shares, old rules (50% discount)</span>
+      <span><span class="swatch new"></span>Shares, new rules (July 2027)</span>
+      <span><span class="swatch prop"></span>New-build property (keeps discount)</span>
     </p>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax portfolio value by sale age under the old and new CGT regimes"></svg>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax value by sale age: shares under the old CGT rules, shares under the new rules, and new-build property"></svg>
     <p class="cgt-readout"></p>
-    <p class="cgt-note">Assumes ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, monthly parcels
-    all acquired under the post-July-2027 rules, and full sale at the chosen age. “Portfolio mix” slides
-    between new-build property (keeps the 50% discount) and shares/ETFs (indexation + 30% minimum).
-    Illustrative only — not financial advice.</p>`;
+    <p class="cgt-note">The same monthly amount put to work three ways, sold in full at the age on the
+    x-axis. Assumes ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, share parcels acquired
+    under the post-July-2027 rules, and unleveraged property with no rent, costs or gearing — the property
+    line isolates the tax treatment and valuation growth only. Illustrative only — not financial advice.</p>`;
 
   const svg = host.querySelector("svg")!;
   const readout = host.querySelector(".cgt-readout")!;
@@ -51,9 +51,9 @@ export function mountCgtExplorer(): void {
     return {
       salary: get("salary"),
       monthly: get("monthly"),
-      annualReturn: get("ret") / 100,
+      sharesReturn: get("sharesRet") / 100,
+      propertyReturn: get("propRet") / 100,
       inflation: INFLATION,
-      sharesPct: get("mix") / 100,
     };
   }
 
@@ -62,15 +62,16 @@ export function mountCgtExplorer(): void {
     const labels: Record<string, string> = {
       salary: fmtFull(s.salary),
       monthly: fmtFull(s.monthly),
-      ret: (s.annualReturn * 100).toFixed(1) + "% p.a.",
-      mix: Math.round(s.sharesPct * 100) + "% shares / " + Math.round(100 - s.sharesPct * 100) + "% new builds",
+      sharesRet: (s.sharesReturn * 100).toFixed(1) + "% p.a.",
+      propRet: (s.propertyReturn * 100).toFixed(1) + "% p.a.",
     };
     for (const slider of sliders)
       slider.parentElement!.querySelector("output")!.textContent = labels[slider.dataset.k!];
 
-    const points = projectPortfolio(s);
-    const max = points[points.length - 1].value * 1.05;
-    const line = (key: "oldNet" | "newNet") =>
+    const points = projectStrategies(s);
+    const last = points[points.length - 1];
+    const max = Math.max(last.sharesOldNet, last.sharesNewNet, last.propertyNet) * 1.08;
+    const line = (key: "sharesOldNet" | "sharesNewNet" | "propertyNet") =>
       points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(p[key], max).toFixed(1)}`).join("");
 
     const yTicks = [0.25, 0.5, 0.75, 1].map((f) => {
@@ -82,27 +83,30 @@ export function mountCgtExplorer(): void {
       `<text x="${x(age)}" y="${H - 10}" text-anchor="middle" class="cgt-tick">${age}</text>`).join("");
 
     const hp = points.find((p) => p.age === hoverAge)!;
-    const gapPath = points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(p.oldNet, max).toFixed(1)}`).join("")
-      + points.slice().reverse().map((p) => `L${x(p.age).toFixed(1)},${y(p.newNet, max).toFixed(1)}`).join("") + "Z";
+    const gapPath = points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(p.sharesOldNet, max).toFixed(1)}`).join("")
+      + points.slice().reverse().map((p) => `L${x(p.age).toFixed(1)},${y(p.sharesNewNet, max).toFixed(1)}`).join("") + "Z";
 
     svg.innerHTML = `${yTicks}${xTicks}
       <path d="${gapPath}" class="cgt-gap"/>
-      <path d="${line("oldNet")}" class="cgt-line cgt-line-old"/>
-      <path d="${line("newNet")}" class="cgt-line cgt-line-new"/>
+      <path d="${line("propertyNet")}" class="cgt-line cgt-line-prop"/>
+      <path d="${line("sharesOldNet")}" class="cgt-line cgt-line-old"/>
+      <path d="${line("sharesNewNet")}" class="cgt-line cgt-line-new"/>
       <line x1="${x(hoverAge)}" x2="${x(hoverAge)}" y1="${PAD.top}" y2="${H - PAD.bottom}" class="cgt-cursor"/>
-      <circle cx="${x(hoverAge)}" cy="${y(hp.oldNet, max)}" r="4" class="cgt-dot-old"/>
-      <circle cx="${x(hoverAge)}" cy="${y(hp.newNet, max)}" r="4" class="cgt-dot-new"/>`;
+      <circle cx="${x(hoverAge)}" cy="${y(hp.propertyNet, max)}" r="4" class="cgt-dot-prop"/>
+      <circle cx="${x(hoverAge)}" cy="${y(hp.sharesOldNet, max)}" r="4" class="cgt-dot-old"/>
+      <circle cx="${x(hoverAge)}" cy="${y(hp.sharesNewNet, max)}" r="4" class="cgt-dot-new"/>`;
 
-    const extra = hp.newTax - hp.oldTax;
+    const extra = hp.sharesOldNet - hp.sharesNewNet;
     readout.innerHTML =
       `Sell at <strong>${hp.age}</strong> (marginal rate ${(marginalRate(s.salary) * 100).toFixed(0)}%): ` +
-      `<strong>${fmtFull(hp.value)}</strong> gross → old rules keep <strong>${fmtFull(hp.oldNet)}</strong>, ` +
-      `new rules keep <strong>${fmtFull(hp.newNet)}</strong> — ` +
+      `shares kept <strong>${fmtFull(hp.sharesOldNet)}</strong> under the old rules vs ` +
+      `<strong>${fmtFull(hp.sharesNewNet)}</strong> under the new — ` +
       (Math.abs(extra) < 1
-        ? `no difference.`
+        ? `no difference`
         : extra > 0
-          ? `<strong class="cgt-delta">${fmtFull(extra)} extra tax</strong>.`
-          : `<strong class="cgt-delta-win">${fmtFull(-extra)} less tax</strong>.`);
+          ? `<strong class="cgt-delta">${fmtFull(extra)} to the tax office</strong>`
+          : `<strong class="cgt-delta-win">${fmtFull(-extra)} better off</strong>`) +
+      `. New-build property at ${(s.propertyReturn * 100).toFixed(1)}% growth keeps <strong>${fmtFull(hp.propertyNet)}</strong>.`;
   }
 
   svg.addEventListener("mousemove", (e) => {

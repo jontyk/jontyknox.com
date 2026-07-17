@@ -37,7 +37,7 @@ In the May 2026 budget the government finally moved. From July 2027 the 50% CGT 
 
 The reform, however, reached beyond housing to all assets, including the shares and ETFs that locked-out young Australians had adopted as their fallback wealth strategy [[10]](#sources). FSC modelling estimates that a 25-year-old on the median income investing $10,000 in shares would see their effective CGT rate rise from 15% to 28.8% over twenty years [[11]](#sources). The sentiment among 20 to 40 year olds is bleak and understandable, because they find themselves priced out of property, taxed harder on the alternative, and stuck renting with whatever income the landlord leaves behind [[12]](#sources).
 
-You can see both the blow and the nuance in the numbers. The explorer below models a 30-year-old investing monthly from today, selling everything at a given age, and paying CGT under the old rules versus the new ones. Drag the sliders: at healthy returns the new regime takes tens of thousands more by 60, yet slide the expected return down toward inflation and indexation actually beats the old discount.
+You can see both the blow and the nuance in the numbers. The explorer below follows a 30-year-old putting the same monthly amount to work three ways: shares under the old 50% discount (the deal every earlier generation got), shares under the new rules, and new-build property, which keeps the discount and has its own valuation-growth slider. At healthy returns the new regime takes tens of thousands more by 60, slide the shares return down toward inflation and indexation actually beats the old discount, and the property line shows how sensitive the "right" answer is to the growth rate you believe in.
 
 <div id="cgt-explorer" class="cgt-explorer"></div>
 
