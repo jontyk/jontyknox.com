@@ -325,3 +325,61 @@
     font-size: 1.2rem;
   }
 }
+
+/* --- CGT explorer widget --- */
+.cgt-explorer {
+  margin: 2rem 0;
+  border: 1px solid var(--ledger-ink);
+  padding: 1.25rem;
+}
+.cgt-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.cgt-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ledger-muted);
+}
+.cgt-controls output {
+  color: var(--ledger-ink);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.9rem;
+}
+.cgt-controls input[type="range"] {
+  accent-color: var(--ledger-accent);
+  width: 100%;
+}
+.cgt-explorer svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cgt-grid { stroke: var(--ledger-muted); stroke-opacity: 0.25; stroke-width: 1; }
+.cgt-tick { fill: var(--ledger-muted); font-size: 11px; }
+.cgt-line { fill: none; stroke-width: 2.5; }
+.cgt-line-old { stroke: var(--ledger-ink); stroke-dasharray: 6 4; }
+.cgt-line-new { stroke: var(--ledger-accent); }
+.cgt-gap { fill: var(--ledger-accent); fill-opacity: 0.12; stroke: none; }
+.cgt-cursor { stroke: var(--ledger-muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.cgt-dot-old { fill: var(--ledger-ink); }
+.cgt-dot-new { fill: var(--ledger-accent); }
+.cgt-readout { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
+.cgt-delta { color: var(--ledger-accent); }
+.cgt-delta-win { color: var(--ledger-ink); }
+.cgt-note { font-size: 0.8rem; color: var(--ledger-muted); margin: 0.5rem 0 0; }
+.cgt-legend { display: flex; gap: 1.25rem; font-size: 0.8rem; color: var(--ledger-muted); margin: 0 0 0.5rem; }
+.cgt-legend .swatch { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--ledger-ink); margin-right: 0.35rem; vertical-align: middle; }
+.cgt-legend .swatch.new { border-top-color: var(--ledger-accent); border-top-style: solid; }
+.cgt-legend .swatch.old { border-top-style: dashed; }
+@media (max-width: 560px) {
+  .cgt-controls { grid-template-columns: 1fr; }
+}
