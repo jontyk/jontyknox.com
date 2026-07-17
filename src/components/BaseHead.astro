@@ -7,9 +7,12 @@ interface Props {
   ogType?: "article" | "website";
   stylesheet: "blog" | "fuel";
   noindex?: boolean;
+  publishedAt?: Date;
 }
 
-const { title, description, ogType = "website", stylesheet, noindex = false } = Astro.props;
+const { title, description, ogType = "website", stylesheet, noindex = false, publishedAt } = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname.replace(/\/$/, "") || "/", Astro.site);
 
 // Inline all page CSS at build time so first render doesn't block on stylesheet requests.
 const readStyle = (name: string) =>
@@ -22,9 +25,18 @@ const inlineCss = ["base", "ledger", stylesheet].map(readStyle).join("\n");
 <title>{title}</title>
 <meta name="description" content={description} />
 {noindex && <meta name="robots" content="noindex" />}
+<link rel="canonical" href={canonicalUrl} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:type" content={ogType} />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:site_name" content="Jonty Knox" />
+{ogType === "article" && publishedAt && (
+  <meta property="article:published_time" content={publishedAt.toISOString()} />
+)}
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
 <link rel="shortcut icon" href="/favicon.ico" />
 <link rel="icon" href="/favicon.ico" sizes="32x32" />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

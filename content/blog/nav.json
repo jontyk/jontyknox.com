@@ -2,19 +2,9 @@
   {
     "title": "Latest",
     "items": [
-      { "title": "Why personal sites still matter", "path": "/blog/why-personal-sites-still-matter" },
       {
-        "title": "Building AI agents people actually trust",
-        "path": "/blog/building-ai-agents-people-actually-trust"
-      }
-    ]
-  },
-  {
-    "title": "Field Notes",
-    "items": [
-      {
-        "title": "Renovating the farmhouse like a product",
-        "path": "/blog/renovating-the-farmhouse-like-a-product"
+        "title": "The Machine That Ate the Pay Rise",
+        "path": "/blog/the-machine-that-ate-the-pay-rise"
       }
     ]
   }

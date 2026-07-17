@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jontyknox.com/sitemap-index.xml
