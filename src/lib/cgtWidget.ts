@@ -24,7 +24,7 @@ export function mountCgtExplorer(): void {
       <label>Shares return <output></output>
         <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
       <label>Property growth <output></output>
-        <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="6" /></label>
+        <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="2" /></label>
       <label>Property gearing <output></output>
         <input type="range" data-k="propLvr" min="0" max="90" step="5" value="80" /></label>
     </div>
@@ -32,15 +32,18 @@ export function mountCgtExplorer(): void {
       <span><span class="swatch old"></span>Shares, old rules (50% discount)</span>
       <span><span class="swatch new"></span>Shares, new rules (July 2027)</span>
       <span><span class="swatch prop"></span>New-build property (keeps discount)</span>
+      <span><span class="swatch exist"></span>Established house (taxed like shares)</span>
     </p>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax value by sale age: shares under the old CGT rules, shares under the new rules, and new-build property"></svg>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax value by sale age: shares under the old CGT rules, shares under the new rules, new-build property, and an established house"></svg>
     <p class="cgt-readout"></p>
     <p class="cgt-note">The same monthly amount put to work three ways, sold in full at the age on the
     x-axis. Assumes ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, and share parcels acquired
     under the post-July-2027 rules. Property is bought with each month's cash as deposit on an interest-only
     loan at the chosen gearing, with rent assumed to cover interest and running costs — so the line shows
-    leveraged valuation growth net of CGT, before stamp duty, vacancies or rate risk. Illustrative only —
-    not financial advice.</p>`;
+    leveraged valuation growth net of CGT, before stamp duty, vacancies or rate risk. New builds keep the
+    50% discount (and negative gearing eligibility); an established house is taxed like shares from July 2027 —
+    the gap between the two property lines is purely that tax treatment, since negative-gearing losses are
+    not modelled here. Illustrative only — not financial advice.</p>`;
 
   const svg = host.querySelector("svg")!;
   const readout = host.querySelector(".cgt-readout")!;
@@ -78,8 +81,8 @@ export function mountCgtExplorer(): void {
 
     const points = projectStrategies(s);
     const last = points[points.length - 1];
-    const max = Math.max(last.sharesOldNet, last.sharesNewNet, last.propertyNet) * 1.08;
-    const line = (key: "sharesOldNet" | "sharesNewNet" | "propertyNet") =>
+    const max = Math.max(last.sharesOldNet, last.sharesNewNet, last.propertyNet, last.existingNet) * 1.08;
+    const line = (key: "sharesOldNet" | "sharesNewNet" | "propertyNet" | "existingNet") =>
       points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(p[key], max).toFixed(1)}`).join("");
 
     const yTicks = [0.25, 0.5, 0.75, 1].map((f) => {
@@ -96,10 +99,12 @@ export function mountCgtExplorer(): void {
 
     svg.innerHTML = `${yTicks}${xTicks}
       <path d="${gapPath}" class="cgt-gap"/>
+      <path d="${line("existingNet")}" class="cgt-line cgt-line-exist"/>
       <path d="${line("propertyNet")}" class="cgt-line cgt-line-prop"/>
       <path d="${line("sharesOldNet")}" class="cgt-line cgt-line-old"/>
       <path d="${line("sharesNewNet")}" class="cgt-line cgt-line-new"/>
       <line x1="${x(hoverAge)}" x2="${x(hoverAge)}" y1="${PAD.top}" y2="${H - PAD.bottom}" class="cgt-cursor"/>
+      <circle cx="${x(hoverAge)}" cy="${y(hp.existingNet, max)}" r="4" class="cgt-dot-exist"/>
       <circle cx="${x(hoverAge)}" cy="${y(hp.propertyNet, max)}" r="4" class="cgt-dot-prop"/>
       <circle cx="${x(hoverAge)}" cy="${y(hp.sharesOldNet, max)}" r="4" class="cgt-dot-old"/>
       <circle cx="${x(hoverAge)}" cy="${y(hp.sharesNewNet, max)}" r="4" class="cgt-dot-new"/>`;
@@ -114,9 +119,10 @@ export function mountCgtExplorer(): void {
         : extra > 0
           ? `<strong class="cgt-delta">${fmtFull(extra)} to the tax office</strong>`
           : `<strong class="cgt-delta-win">${fmtFull(-extra)} better off</strong>`) +
-      `. New-build property at ${(s.propertyReturn * 100).toFixed(1)}% growth${
+      `. Property at ${(s.propertyReturn * 100).toFixed(1)}% growth${
         s.propertyLvr > 0 ? `, geared ${(1 / (1 - s.propertyLvr)).toFixed(1)}x,` : ""
-      } keeps <strong>${fmtFull(hp.propertyNet)}</strong>.`;
+      } keeps <strong>${fmtFull(hp.propertyNet)}</strong> as a new build, ` +
+      `<strong>${fmtFull(hp.existingNet)}</strong> as an established house.`;
   }
 
   svg.addEventListener("mousemove", (e) => {

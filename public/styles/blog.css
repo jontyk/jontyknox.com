@@ -388,3 +388,8 @@
 .cgt-line-prop { stroke: var(--ledger-muted); }
 .cgt-dot-prop { fill: var(--ledger-muted); }
 .cgt-legend .swatch.prop { border-top-color: var(--ledger-muted); border-top-style: solid; }
+
+/* --- CGT explorer: established-house line --- */
+.cgt-line-exist { stroke: var(--ledger-muted); stroke-dasharray: 6 4; }
+.cgt-dot-exist { fill: var(--ledger-muted); }
+.cgt-legend .swatch.exist { border-top-color: var(--ledger-muted); border-top-style: dashed; }

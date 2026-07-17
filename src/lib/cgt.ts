@@ -31,6 +31,8 @@ export interface CgtPoint {
   sharesNewNet: number;
   /** new-build property, which keeps the 50% discount under the new rules */
   propertyNet: number;
+  /** established house: same leveraged growth, taxed like shares post-2027 */
+  existingNet: number;
 }
 
 // 2025-26 resident brackets + 2% Medicare levy (applied above the low-income range).
@@ -84,6 +86,7 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
     let sharesOldTax = 0;
     let sharesNewTax = 0;
     let propertyTax = 0;
+    let existingTax = 0;
 
     for (let month = 0; month < years * 12; month++) {
       const hold = years - month / 12;
@@ -104,7 +107,11 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
       const propGain =
         inputs.monthly * leverage * (Math.pow(1 + inputs.propertyReturn, hold) - 1);
       propertyValue += inputs.monthly + propGain;
-      if (propGain > 0) propertyTax += propGain * oldEffectiveRate(m);
+      if (propGain > 0) {
+        propertyTax += propGain * oldEffectiveRate(m);
+        existingTax +=
+          propGain * newEffectiveRate(m, inputs.propertyReturn, inputs.inflation, hold);
+      }
     }
 
     points.push({
@@ -115,6 +122,7 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
       sharesOldNet: sharesValue - sharesOldTax,
       sharesNewNet: sharesValue - sharesNewTax,
       propertyNet: propertyValue - propertyTax,
+      existingNet: propertyValue - existingTax,
     });
   }
   return points;
