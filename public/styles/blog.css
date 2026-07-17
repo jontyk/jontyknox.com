@@ -383,3 +383,8 @@
 @media (max-width: 560px) {
   .cgt-controls { grid-template-columns: 1fr; }
 }
+
+/* --- CGT explorer: property line --- */
+.cgt-line-prop { stroke: var(--ledger-muted); }
+.cgt-dot-prop { fill: var(--ledger-muted); }
+.cgt-legend .swatch.prop { border-top-color: var(--ledger-muted); border-top-style: solid; }

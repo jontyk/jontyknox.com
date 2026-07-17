@@ -4,7 +4,7 @@ import {
   marginalRate,
   oldEffectiveRate,
   newEffectiveRate,
-  projectPortfolio,
+  projectStrategies,
   type CgtInputs,
 } from "./cgt.ts";
 
@@ -44,36 +44,33 @@ test("newEffectiveRate is zero when there is no real gain", () => {
 const base: CgtInputs = {
   salary: 100000,
   monthly: 500,
-  annualReturn: 0.08,
+  sharesReturn: 0.08,
+  propertyReturn: 0.06,
   inflation: 0.026,
-  sharesPct: 1,
 };
 
-test("projectPortfolio returns one point per age 31-60", () => {
-  const points = projectPortfolio(base);
+test("projectStrategies returns one point per age 31-60", () => {
+  const points = projectStrategies(base);
   assert.equal(points.length, 30);
   assert.equal(points[0].age, 31);
   assert.equal(points[29].age, 60);
 });
 
-test("projectPortfolio: new regime taxes more than old at healthy returns", () => {
-  const points = projectPortfolio(base);
-  const last = points[29];
-  assert.ok(last.newTax > last.oldTax);
-  assert.ok(last.oldNet > last.newNet);
+test("shares under new rules net less than under old rules at healthy returns", () => {
+  const last = projectStrategies(base)[29];
+  assert.ok(last.sharesOldNet > last.sharesNewNet);
   // Gross value sanity: $500/mo at 8% for 30y is ~$700k
-  assert.ok(last.value > 600000 && last.value < 800000, `got ${last.value}`);
+  assert.ok(last.sharesValue > 600000 && last.sharesValue < 800000, `got ${last.sharesValue}`);
 });
 
-test("projectPortfolio: 100% new-build property keeps the old treatment", () => {
-  const points = projectPortfolio({ ...base, sharesPct: 0 });
-  const last = points[29];
-  assert.ok(Math.abs(last.newTax - last.oldTax) < 1);
+test("property keeps the discount: at equal returns it matches shares under old rules", () => {
+  const last = projectStrategies({ ...base, propertyReturn: base.sharesReturn })[29];
+  assert.ok(Math.abs(last.propertyNet - last.sharesOldNet) < 1);
+  assert.ok(Math.abs(last.propertyValue - last.sharesValue) < 1);
 });
 
-test("projectPortfolio: mixed portfolio blends the two treatments", () => {
-  const all = projectPortfolio(base)[29];
-  const half = projectPortfolio({ ...base, sharesPct: 0.5 })[29];
-  const expected = all.oldTax + (all.newTax - all.oldTax) * 0.5;
-  assert.ok(Math.abs(half.newTax - expected) < 1);
+test("higher property growth lifts the property line", () => {
+  const low = projectStrategies({ ...base, propertyReturn: 0.04 })[29];
+  const high = projectStrategies({ ...base, propertyReturn: 0.09 })[29];
+  assert.ok(high.propertyNet > low.propertyNet);
 });

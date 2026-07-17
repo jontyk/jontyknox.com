@@ -1,27 +1,30 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
 // Simplifications: constant salary/brackets, all parcels acquired post-2027,
-// CGT assessed at the investor's marginal rate without bracket creep from the
-// gain itself.
+// unleveraged monthly contributions, CGT assessed at the investor's marginal
+// rate without bracket creep from the gain itself.
 
 export interface CgtInputs {
   salary: number;
   monthly: number;
-  annualReturn: number;
+  /** shares/ETF annual growth */
+  sharesReturn: number;
+  /** property annual valuation growth */
+  propertyReturn: number;
   inflation: number;
-  /** 0..1 — remainder is new-build property, which keeps the 50% discount */
-  sharesPct: number;
 }
 
 export interface CgtPoint {
   age: number;
-  /** gross portfolio value at sale */
-  value: number;
+  sharesValue: number;
+  propertyValue: number;
   contributed: number;
-  oldTax: number;
-  newTax: number;
-  oldNet: number;
-  newNet: number;
+  /** shares taxed with the 50% discount — the pre-2027 deal */
+  sharesOldNet: number;
+  /** shares taxed with indexation + 30% minimum — the post-2027 deal */
+  sharesNewNet: number;
+  /** new-build property, which keeps the 50% discount under the new rules */
+  propertyNet: number;
 }
 
 // 2025-26 resident brackets + 2% Medicare levy (applied above the low-income range).
@@ -59,42 +62,49 @@ export function newEffectiveRate(
 }
 
 /**
- * Invest `monthly` from age 30, sell everything at each age 31-60. Each
- * monthly parcel is taxed on its own holding period. The property share of
- * the portfolio keeps old treatment under both regimes (new builds retain
- * the 50% discount).
+ * Put the same `monthly` amount into each of three strategies from age 30 and
+ * sell everything at each age 31-60, taxing each monthly parcel on its own
+ * holding period: shares under the old rules, shares under the new rules, and
+ * new-build property (own growth rate, keeps the 50% discount).
  */
-export function projectPortfolio(inputs: CgtInputs): CgtPoint[] {
+export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
   const points: CgtPoint[] = [];
 
   for (let age = 31; age <= 60; age++) {
     const years = age - 30;
-    let value = 0;
-    let oldTax = 0;
+    let sharesValue = 0;
+    let propertyValue = 0;
+    let sharesOldTax = 0;
     let sharesNewTax = 0;
+    let propertyTax = 0;
 
     for (let month = 0; month < years * 12; month++) {
       const hold = years - month / 12;
-      const parcel = inputs.monthly * Math.pow(1 + inputs.annualReturn, hold);
-      const gain = parcel - inputs.monthly;
-      value += parcel;
-      if (gain <= 0) continue;
-      oldTax += gain * oldEffectiveRate(m);
-      sharesNewTax +=
-        gain * newEffectiveRate(m, inputs.annualReturn, inputs.inflation, hold);
+
+      const shareParcel = inputs.monthly * Math.pow(1 + inputs.sharesReturn, hold);
+      const shareGain = shareParcel - inputs.monthly;
+      sharesValue += shareParcel;
+      if (shareGain > 0) {
+        sharesOldTax += shareGain * oldEffectiveRate(m);
+        sharesNewTax +=
+          shareGain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, hold);
+      }
+
+      const propParcel = inputs.monthly * Math.pow(1 + inputs.propertyReturn, hold);
+      const propGain = propParcel - inputs.monthly;
+      propertyValue += propParcel;
+      if (propGain > 0) propertyTax += propGain * oldEffectiveRate(m);
     }
 
-    const newTax = oldTax + (sharesNewTax - oldTax) * inputs.sharesPct;
-    const contributed = inputs.monthly * years * 12;
     points.push({
       age,
-      value,
-      contributed,
-      oldTax,
-      newTax,
-      oldNet: value - oldTax,
-      newNet: value - newTax,
+      sharesValue,
+      propertyValue,
+      contributed: inputs.monthly * years * 12,
+      sharesOldNet: sharesValue - sharesOldTax,
+      sharesNewNet: sharesValue - sharesNewTax,
+      propertyNet: propertyValue - propertyTax,
     });
   }
   return points;
