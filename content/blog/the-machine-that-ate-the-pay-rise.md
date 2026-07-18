@@ -49,6 +49,8 @@ Tax concessions were never the whole story. Direct estimates of their price effe
 
 The cost of living crisis is the invoice for that choice, delivered with interest to the generation that never got a vote on it.
 
+So what now? The 2026 reforms repriced the exits from the machine while leaving the entrance as narrow as ever: taxes on gains changed, yet nothing in the budget builds the homes or loosens the planning rules that would let a wage-earner in. For anyone under 40 the practical game has shifted from riding the old escalator to choosing assets carefully under the new rules — the explorer above shows how sensitive that choice is to the growth you believe in. And for policymakers the test is simple: until a median income can once again buy a median home, the machine is still running, and it will keep eating every pay rise the country delivers.
+
 ## Sources
 
 1. The Australia Institute, [Negative gearing and capital gains tax discount driving up house prices](https://australiainstitute.org.au/post/negative-gearing-and-capital-gains-tax-discount-driving-up-house-prices/) (2024)
