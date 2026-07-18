@@ -45,7 +45,6 @@ const base: CgtInputs = {
   propertyReturn: 0.06,
   initialInvestment: 25000,
   lvr: 0.8,
-  mortgageRate: 0.06,
   inflation: 0.026,
 };
 
@@ -56,22 +55,33 @@ test("projectStrategies returns one point per age 31-60", () => {
   assert.equal(points[29].age, 60);
 });
 
-test("house, loan and payment derive from deposit, LVR and rate", () => {
-  // $25k deposit at 80% LVR buys a $125k house with a $100k loan, and 6%
-  // interest-only costs $500/mo.
+test("house and loan derive from deposit and LVR", () => {
+  // $25k deposit at 80% LVR buys a $125k house with a $100k loan.
   const p = projectStrategies(base)[0];
   assert.ok(Math.abs(p.houseValue - 125000) < 1, `house ${p.houseValue}`);
   assert.ok(Math.abs(p.loan - 100000) < 1, `loan ${p.loan}`);
   assert.ok(Math.abs(p.deposit - 25000) < 1, `deposit ${p.deposit}`);
-  assert.ok(Math.abs(p.monthly - 500) < 1, `monthly ${p.monthly}`);
 });
 
-test("shares strategies invest the deposit upfront plus the monthly amount", () => {
-  // Total cash outlay matches the property strategy: deposit + monthly payments.
-  const p = projectStrategies(base)[29];
-  assert.ok(Math.abs(p.contributed - (25000 + 500 * 360)) < 1, `got ${p.contributed}`);
-  // Deposit compounds for the full 30 years: value must exceed monthly-only accumulation
-  assert.ok(p.sharesValue > 700000);
+test("shares are a single lump sum compounding untouched", () => {
+  const last = projectStrategies(base)[29];
+  const expected = 25000 * Math.pow(1.08, 30);
+  assert.ok(Math.abs(last.sharesValue - expected) < 1, `got ${last.sharesValue}`);
+});
+
+test("LVR changes the property lines only", () => {
+  const a = projectStrategies(base)[29];
+  const b = projectStrategies({ ...base, lvr: 0.95 })[29];
+  assert.equal(a.sharesOldNet, b.sharesOldNet);
+  assert.equal(a.sharesNewNet, b.sharesNewNet);
+  assert.ok(b.propertyNet > a.propertyNet);
+});
+
+test("property growth leaves the share lines untouched", () => {
+  const a = projectStrategies(base)[29];
+  const b = projectStrategies({ ...base, propertyReturn: 0.1 })[29];
+  assert.equal(a.sharesOldNet, b.sharesOldNet);
+  assert.equal(a.sharesNewNet, b.sharesNewNet);
 });
 
 test("shares under new rules net less than under old rules at healthy returns", () => {
@@ -80,7 +90,6 @@ test("shares under new rules net less than under old rules at healthy returns", 
 });
 
 test("property equity is house growth minus the standing loan, net of CGT", () => {
-  // At 6% growth: equity before tax = 125k*1.06^30 - 100k
   const last = projectStrategies(base)[29];
   const grossEquity = 125000 * Math.pow(1.06, 30) - 100000;
   const gain = 125000 * (Math.pow(1.06, 30) - 1);
@@ -97,20 +106,6 @@ test("established house pays no CGT when growth stays under inflation", () => {
   const last = projectStrategies({ ...base, propertyReturn: 0.02 })[29];
   const grossEquity = 125000 * Math.pow(1.02, 30) - 100000;
   assert.ok(Math.abs(last.existingNet - grossEquity) < 1);
-});
-
-test("property growth leaves the share lines untouched", () => {
-  const a = projectStrategies(base)[29];
-  const b = projectStrategies({ ...base, propertyReturn: 0.1 })[29];
-  assert.equal(a.sharesOldNet, b.sharesOldNet);
-  assert.equal(a.sharesNewNet, b.sharesNewNet);
-});
-
-test("higher mortgage rate raises the payment, not the house", () => {
-  const cheap = projectStrategies({ ...base, mortgageRate: 0.04 })[0];
-  const dear = projectStrategies({ ...base, mortgageRate: 0.08 })[0];
-  assert.equal(cheap.houseValue, dear.houseValue);
-  assert.ok(dear.monthly > cheap.monthly);
 });
 
 test("higher LVR buys a bigger house on the same deposit", () => {
