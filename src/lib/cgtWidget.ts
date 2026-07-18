@@ -27,8 +27,8 @@ export function mountCgtExplorer(): void {
         <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="2" /></label>
       <label>Mortgage rate <output></output>
         <input type="range" data-k="mortRate" min="3" max="9" step="0.25" value="6" /></label>
-      <label>Property gearing <output></output>
-        <input type="range" data-k="propLvr" min="50" max="95" step="5" value="80" /></label>
+      <label>Initial investment <output></output>
+        <input type="range" data-k="initial" min="5000" max="200000" step="5000" value="25000" /></label>
     </div>
     <p class="cgt-loan"></p>
     <p class="cgt-legend">
@@ -40,9 +40,9 @@ export function mountCgtExplorer(): void {
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="After-tax value by sale age: shares under the old CGT rules, shares under the new rules, new-build property, and an established house"></svg>
     <p class="cgt-readout"></p>
     <p class="cgt-note">The same cashflow four ways, sold in full at the age on the x-axis. The monthly
-    amount fully services an interest-only loan (max loan = payments ÷ mortgage rate), the gearing sets
-    the house value, and the implied deposit goes in upfront — the share strategies invest that same
-    deposit as a lump sum plus the monthly amount, so every line reflects identical total outlay. Assumes
+    amount fully services an interest-only loan (max loan = payments ÷ mortgage rate) and the initial
+    investment is the deposit, so house value = loan + deposit — the share strategies invest that same
+    initial amount as a lump sum plus the monthly amount, so every line reflects identical total outlay. Assumes
     ${(INFLATION * 100).toFixed(1)}% inflation, current tax brackets, share parcels acquired under the
     post-July-2027 rules, and rent covering the property's running costs. New builds keep the 50% discount
     (and negative-gearing eligibility); an established house is taxed like shares from July 2027 — the gap
@@ -65,7 +65,7 @@ export function mountCgtExplorer(): void {
       monthly: get("monthly"),
       sharesReturn: get("sharesRet") / 100,
       propertyReturn: get("propRet") / 100,
-      propertyLvr: get("propLvr") / 100,
+      initialInvestment: get("initial"),
       mortgageRate: get("mortRate") / 100,
       inflation: INFLATION,
     };
@@ -79,17 +79,19 @@ export function mountCgtExplorer(): void {
       sharesRet: (s.sharesReturn * 100).toFixed(1) + "% p.a.",
       propRet: (s.propertyReturn * 100).toFixed(1) + "% p.a.",
       mortRate: (s.mortgageRate * 100).toFixed(2).replace(/\.?0+$/, "") + "% interest-only",
-      propLvr: Math.round(s.propertyLvr * 100) + "% LVR (" + (1 / (1 - s.propertyLvr)).toFixed(1) + "x leverage)",
+      initial: fmtFull(s.initialInvestment) + " (deposit or shares)",
     };
     for (const slider of sliders)
       slider.parentElement!.querySelector("output")!.textContent = labels[slider.dataset.k!];
 
     const points = projectStrategies(s);
     const first = points[0];
+    const lvr = first.loan / first.houseValue;
     loanLine.innerHTML =
       `${fmtFull(s.monthly)}/month at ${(s.mortgageRate * 100).toFixed(2).replace(/\.?0+$/, "")}% services a ` +
-      `<strong>${fmtFull(first.loan)}</strong> loan → a <strong>${fmtFull(first.houseValue)}</strong> property ` +
-      `with a <strong>${fmtFull(first.deposit)}</strong> deposit.`;
+      `<strong>${fmtFull(first.loan)}</strong> loan; with the <strong>${fmtFull(first.deposit)}</strong> deposit ` +
+      `that buys a <strong>${fmtFull(first.houseValue)}</strong> property at ` +
+      `<strong>${Math.round(lvr * 100)}% LVR</strong> (${(first.houseValue / first.deposit).toFixed(1)}x leverage on the deposit).`;
 
     const last = points[points.length - 1];
     const max =

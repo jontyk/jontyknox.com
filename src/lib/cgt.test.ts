@@ -44,7 +44,7 @@ const base: CgtInputs = {
   monthly: 500,
   sharesReturn: 0.08,
   propertyReturn: 0.06,
-  propertyLvr: 0.8,
+  initialInvestment: 25000,
   mortgageRate: 0.06,
   inflation: 0.026,
 };
@@ -57,8 +57,8 @@ test("projectStrategies returns one point per age 31-60", () => {
 });
 
 test("loan and house value derive from the interest-only payment", () => {
-  // $500/mo at 6% services a $100k loan; at 80% LVR that buys a $125k house
-  // with a $25k deposit.
+  // $500/mo at 6% services a $100k loan; a $25k initial investment as the
+  // deposit buys a $125k house (80% LVR).
   const p = projectStrategies(base)[0];
   assert.ok(Math.abs(p.loan - 100000) < 1, `loan ${p.loan}`);
   assert.ok(Math.abs(p.houseValue - 125000) < 1, `house ${p.houseValue}`);
@@ -96,6 +96,13 @@ test("established house pays no CGT when growth stays under inflation", () => {
   const last = projectStrategies({ ...base, propertyReturn: 0.02 })[29];
   const grossEquity = 125000 * Math.pow(1.02, 30) - 100000;
   assert.ok(Math.abs(last.existingNet - grossEquity) < 1);
+});
+
+test("property-only inputs leave the share lines untouched", () => {
+  const a = projectStrategies(base)[29];
+  const b = projectStrategies({ ...base, mortgageRate: 0.08, propertyReturn: 0.1 })[29];
+  assert.equal(a.sharesOldNet, b.sharesOldNet);
+  assert.equal(a.sharesNewNet, b.sharesNewNet);
 });
 
 test("higher mortgage rate shrinks the affordable house", () => {
