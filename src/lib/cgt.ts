@@ -1,15 +1,20 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
 //
-// One upfront investment, no added capital over time. For shares the initial
-// amount buys a portfolio that compounds untouched. For property it is the
-// deposit on an interest-only loan at the bank's LVR (house = deposit /
-// (1 - LVR)); rent is assumed to cover interest and running costs, so the
-// only cashflow either strategy ever sees is the initial investment.
+// One upfront investment. For shares the initial amount buys a portfolio
+// that compounds untouched. For property it is the deposit on an
+// interest-only loan at the bank's LVR (house = deposit / (1 - LVR)). Rent
+// (rental yield x current house value) goes toward the interest; any
+// shortfall is a holding cost the owner pays each year. That shortfall is
+// where negative gearing lives: a new build can deduct it against wage
+// income, an established house from July 2027 cannot.
 //
-// Simplifications: constant salary/brackets, all assets acquired post-2027,
-// negative-gearing refunds not modelled, CGT assessed at the investor's
-// marginal rate without bracket creep.
+// Simplifications: constant salary/brackets and rates, all assets acquired
+// post-2027, rent net of running costs, rental surpluses beyond the
+// interest ignored, holding costs subtracted at face value at sale, CGT
+// assessed at the investor's marginal rate without bracket creep. Each
+// line is self-contained: the share investor is not credited with
+// investing the shortfall the landlord pays.
 
 export interface CgtInputs {
   salary: number;
@@ -21,6 +26,10 @@ export interface CgtInputs {
   initialInvestment: number;
   /** loan-to-value ratio the bank lends at, 0.5..0.95 */
   lvr: number;
+  /** interest-only mortgage rate */
+  mortgageRate: number;
+  /** net rental yield on the current house value */
+  rentalYield: number;
   inflation: number;
 }
 
@@ -35,9 +44,13 @@ export interface CgtPoint {
   sharesOldNet: number;
   /** shares taxed with indexation + 30% minimum — the post-2027 deal */
   sharesNewNet: number;
-  /** new-build property equity net of CGT (keeps the 50% discount) */
+  /** cumulative interest-minus-rent shortfall paid to date, before any deduction */
+  shortfall: number;
+  /** new-build property: equity net of CGT (keeps the 50% discount) and of
+   * the negatively-geared shortfall (deducted at the marginal rate) */
   propertyNet: number;
-  /** established house: same growth, taxed like shares post-2027 */
+  /** established house: same growth, taxed like shares post-2027, shortfall
+   * paid with no deduction */
   existingNet: number;
 }
 
@@ -88,8 +101,16 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const loan = houseValue - deposit;
   const points: CgtPoint[] = [];
 
+  const interest = loan * inputs.mortgageRate;
+  let shortfall = 0;
+
   for (let age = 31; age <= 60; age++) {
     const years = age - 30;
+
+    // Shortfall for the year just held: rent on the start-of-year value.
+    const rent =
+      inputs.rentalYield * houseValue * Math.pow(1 + inputs.propertyReturn, years - 1);
+    shortfall += Math.max(0, interest - rent);
 
     const sharesValue = deposit * Math.pow(1 + inputs.sharesReturn, years);
     const sharesGain = Math.max(0, sharesValue - deposit);
@@ -110,10 +131,11 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
       houseValue,
       deposit,
       sharesValue,
+      shortfall,
       sharesOldNet: sharesValue - sharesOldTax,
       sharesNewNet: sharesValue - sharesNewTax,
-      propertyNet: grossEquity - newBuildTax,
-      existingNet: grossEquity - existingTax,
+      propertyNet: grossEquity - newBuildTax - shortfall * (1 - m),
+      existingNet: grossEquity - existingTax - shortfall,
     });
   }
   return points;
