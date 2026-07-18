@@ -1,12 +1,11 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
 //
-// The monthly amount is the investor's cashflow and the initial investment
-// is their starting cash. For property the monthly amount fully services an
-// interest-only loan (max loan = monthly x 12 / mortgage rate) and the
-// initial investment is the deposit, so house value = loan + deposit. The
-// share strategies invest the same initial amount as an upfront lump sum
-// plus the monthly amount, so every line reflects the same total outlay.
+// The initial investment is the buyer's deposit and the LVR is what the
+// bank will lend against the house, so house value = deposit / (1 - LVR)
+// and the interest-only payment on the loan falls out (loan x rate / 12).
+// The share strategies invest the same deposit as an upfront lump sum plus
+// that same monthly payment, so every line reflects the same total outlay.
 //
 // Simplifications: constant salary/brackets and rates, all parcels acquired
 // post-2027, rent covers the property's running costs (interest is the
@@ -15,13 +14,14 @@
 
 export interface CgtInputs {
   salary: number;
-  monthly: number;
   /** shares/ETF annual growth */
   sharesReturn: number;
   /** property annual valuation growth */
   propertyReturn: number;
   /** upfront cash: house deposit, or the initial share investment */
   initialInvestment: number;
+  /** loan-to-value ratio the bank lends at, 0.5..0.95 */
+  lvr: number;
   /** interest-only mortgage rate */
   mortgageRate: number;
   inflation: number;
@@ -32,6 +32,8 @@ export interface CgtPoint {
   loan: number;
   houseValue: number;
   deposit: number;
+  /** derived interest-only payment, also invested monthly in shares */
+  monthly: number;
   /** total cash outlay to date: deposit + monthly payments */
   contributed: number;
   /** gross share portfolio value (deposit lump sum + monthly parcels) */
@@ -84,13 +86,14 @@ export function newEffectiveRate(
  * Deploy the same cashflow four ways from age 30 and sell at each age 31-60:
  * shares under the old rules, shares under the new rules, a new-build house
  * and an established house — both houses bought at age 30 with the max
- * interest-only loan the monthly payment services.
+ * interest-only loan priced by the bank's LVR and mortgage rate.
  */
 export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
-  const loan = (inputs.monthly * 12) / inputs.mortgageRate;
   const deposit = inputs.initialInvestment;
-  const houseValue = loan + deposit;
+  const houseValue = deposit / (1 - inputs.lvr);
+  const loan = houseValue - deposit;
+  const monthly = (loan * inputs.mortgageRate) / 12;
   const points: CgtPoint[] = [];
 
   for (let age = 31; age <= 60; age++) {
@@ -112,7 +115,7 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
 
     shareParcel(deposit, years);
     for (let month = 0; month < years * 12; month++) {
-      shareParcel(inputs.monthly, years - month / 12);
+      shareParcel(monthly, years - month / 12);
     }
 
     const houseNow = houseValue * Math.pow(1 + inputs.propertyReturn, years);
@@ -127,7 +130,8 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
       loan,
       houseValue,
       deposit,
-      contributed: deposit + inputs.monthly * years * 12,
+      monthly,
+      contributed: deposit + monthly * years * 12,
       sharesValue,
       sharesOldNet: sharesValue - sharesOldTax,
       sharesNewNet: sharesValue - sharesNewTax,
