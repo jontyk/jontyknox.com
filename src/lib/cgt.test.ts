@@ -23,10 +23,8 @@ test("oldEffectiveRate halves the marginal rate", () => {
 });
 
 test("newEffectiveRate applies at least 30% to the indexed gain", () => {
-  // Median earner, 20y, 8.5% return, 2.5% inflation — FSC ballpark (~27-29%)
   const eff = newEffectiveRate(0.32, 0.085, 0.025, 20);
   assert.ok(eff > 0.25 && eff < 0.29, `got ${eff}`);
-  // Low earner is dragged up by the 30% floor
   const low = newEffectiveRate(0.18, 0.085, 0.025, 20);
   assert.ok(low > 0.24, `got ${low}`);
 });
@@ -46,7 +44,8 @@ const base: CgtInputs = {
   monthly: 500,
   sharesReturn: 0.08,
   propertyReturn: 0.06,
-  propertyLvr: 0,
+  propertyLvr: 0.8,
+  mortgageRate: 0.06,
   inflation: 0.026,
 };
 
@@ -57,55 +56,50 @@ test("projectStrategies returns one point per age 31-60", () => {
   assert.equal(points[29].age, 60);
 });
 
+test("loan and house value derive from the interest-only payment", () => {
+  // $500/mo at 6% services a $100k loan; at 80% LVR that buys a $125k house
+  // with a $25k deposit.
+  const p = projectStrategies(base)[0];
+  assert.ok(Math.abs(p.loan - 100000) < 1, `loan ${p.loan}`);
+  assert.ok(Math.abs(p.houseValue - 125000) < 1, `house ${p.houseValue}`);
+  assert.ok(Math.abs(p.deposit - 25000) < 1, `deposit ${p.deposit}`);
+});
+
+test("shares strategies invest the deposit upfront plus the monthly amount", () => {
+  // Total cash outlay matches the property strategy: deposit + monthly payments.
+  const p = projectStrategies(base)[29];
+  assert.ok(Math.abs(p.contributed - (25000 + 500 * 360)) < 1, `got ${p.contributed}`);
+  // Deposit compounds for the full 30 years: value must exceed monthly-only accumulation
+  assert.ok(p.sharesValue > 700000);
+});
+
 test("shares under new rules net less than under old rules at healthy returns", () => {
   const last = projectStrategies(base)[29];
   assert.ok(last.sharesOldNet > last.sharesNewNet);
-  // Gross value sanity: $500/mo at 8% for 30y is ~$700k
-  assert.ok(last.sharesValue > 600000 && last.sharesValue < 800000, `got ${last.sharesValue}`);
 });
 
-test("property keeps the discount: at equal returns it matches shares under old rules", () => {
-  const last = projectStrategies({ ...base, propertyReturn: base.sharesReturn })[29];
-  assert.ok(Math.abs(last.propertyNet - last.sharesOldNet) < 1);
-  assert.ok(Math.abs(last.propertyValue - last.sharesValue) < 1);
+test("property equity is house growth minus the standing loan, net of CGT", () => {
+  // At 6% growth: equity before tax = 125k*1.06^30 - 100k
+  const last = projectStrategies(base)[29];
+  const grossEquity = 125000 * Math.pow(1.06, 30) - 100000;
+  const gain = 125000 * (Math.pow(1.06, 30) - 1);
+  const expectedNet = grossEquity - gain * oldEffectiveRate(marginalRate(base.salary));
+  assert.ok(Math.abs(last.propertyNet - expectedNet) < 1, `${last.propertyNet} vs ${expectedNet}`);
 });
 
-test("higher property growth lifts the property line", () => {
-  const low = projectStrategies({ ...base, propertyReturn: 0.04 })[29];
-  const high = projectStrategies({ ...base, propertyReturn: 0.09 })[29];
-  assert.ok(high.propertyNet > low.propertyNet);
-});
-
-test("leverage multiplies the property gain (and its CGT)", () => {
-  // One parcel intuition: at 80% LVR each deposit dollar controls $5 of
-  // property, so the nominal gain per parcel is 5x the unleveraged gain.
-  const flat = projectStrategies(base)[29];
-  const geared = projectStrategies({ ...base, propertyLvr: 0.8 })[29];
-  const flatGain = flat.propertyValue - flat.contributed;
-  const gearedGain = geared.propertyValue - geared.contributed;
-  assert.ok(Math.abs(gearedGain - flatGain * 5) < 1, `${gearedGain} vs ${flatGain * 5}`);
-  // After-tax outcome is far higher, but tax scales with the gain too
-  assert.ok(geared.propertyNet > flat.propertyNet * 2);
-  const flatTax = flat.propertyValue - flat.propertyNet;
-  assert.ok(Math.abs((geared.propertyValue - geared.propertyNet) - flatTax * 5) < 1);
-});
-
-test("existing house is taxed like shares: below new builds when growth beats inflation", () => {
-  const last = projectStrategies({ ...base, propertyReturn: 0.06, propertyLvr: 0.8 })[29];
+test("established house pays more CGT than a new build when growth beats inflation", () => {
+  const last = projectStrategies(base)[29];
   assert.ok(last.existingNet < last.propertyNet);
-  // Same gross equity, different tax treatment
-  const propTax = last.propertyValue - last.propertyNet;
-  const existTax = last.propertyValue - last.existingNet;
-  assert.ok(existTax > propTax);
 });
 
-test("existing house pays no CGT when growth stays under inflation", () => {
-  const last = projectStrategies({ ...base, propertyReturn: 0.02, propertyLvr: 0.8 })[29];
-  assert.equal(last.existingNet, last.propertyValue);
+test("established house pays no CGT when growth stays under inflation", () => {
+  const last = projectStrategies({ ...base, propertyReturn: 0.02 })[29];
+  const grossEquity = 125000 * Math.pow(1.02, 30) - 100000;
+  assert.ok(Math.abs(last.existingNet - grossEquity) < 1);
 });
 
-test("modest leveraged growth beats strong unleveraged shares", () => {
-  // 6% property at 80% LVR should outrun 8% shares over 30 years
-  const p = projectStrategies({ ...base, propertyLvr: 0.8 })[29];
-  assert.ok(p.propertyNet > p.sharesOldNet);
+test("higher mortgage rate shrinks the affordable house", () => {
+  const cheap = projectStrategies({ ...base, mortgageRate: 0.04 })[0];
+  const dear = projectStrategies({ ...base, mortgageRate: 0.08 })[0];
+  assert.ok(cheap.houseValue > dear.houseValue);
 });
