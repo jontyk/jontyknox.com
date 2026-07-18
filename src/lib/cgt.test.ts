@@ -41,10 +41,10 @@ test("newEffectiveRate is zero when there is no real gain", () => {
 
 const base: CgtInputs = {
   salary: 100000,
-  monthly: 500,
   sharesReturn: 0.08,
   propertyReturn: 0.06,
   initialInvestment: 25000,
+  lvr: 0.8,
   mortgageRate: 0.06,
   inflation: 0.026,
 };
@@ -56,13 +56,14 @@ test("projectStrategies returns one point per age 31-60", () => {
   assert.equal(points[29].age, 60);
 });
 
-test("loan and house value derive from the interest-only payment", () => {
-  // $500/mo at 6% services a $100k loan; a $25k initial investment as the
-  // deposit buys a $125k house (80% LVR).
+test("house, loan and payment derive from deposit, LVR and rate", () => {
+  // $25k deposit at 80% LVR buys a $125k house with a $100k loan, and 6%
+  // interest-only costs $500/mo.
   const p = projectStrategies(base)[0];
-  assert.ok(Math.abs(p.loan - 100000) < 1, `loan ${p.loan}`);
   assert.ok(Math.abs(p.houseValue - 125000) < 1, `house ${p.houseValue}`);
+  assert.ok(Math.abs(p.loan - 100000) < 1, `loan ${p.loan}`);
   assert.ok(Math.abs(p.deposit - 25000) < 1, `deposit ${p.deposit}`);
+  assert.ok(Math.abs(p.monthly - 500) < 1, `monthly ${p.monthly}`);
 });
 
 test("shares strategies invest the deposit upfront plus the monthly amount", () => {
@@ -98,15 +99,23 @@ test("established house pays no CGT when growth stays under inflation", () => {
   assert.ok(Math.abs(last.existingNet - grossEquity) < 1);
 });
 
-test("property-only inputs leave the share lines untouched", () => {
+test("property growth leaves the share lines untouched", () => {
   const a = projectStrategies(base)[29];
-  const b = projectStrategies({ ...base, mortgageRate: 0.08, propertyReturn: 0.1 })[29];
+  const b = projectStrategies({ ...base, propertyReturn: 0.1 })[29];
   assert.equal(a.sharesOldNet, b.sharesOldNet);
   assert.equal(a.sharesNewNet, b.sharesNewNet);
 });
 
-test("higher mortgage rate shrinks the affordable house", () => {
+test("higher mortgage rate raises the payment, not the house", () => {
   const cheap = projectStrategies({ ...base, mortgageRate: 0.04 })[0];
   const dear = projectStrategies({ ...base, mortgageRate: 0.08 })[0];
-  assert.ok(cheap.houseValue > dear.houseValue);
+  assert.equal(cheap.houseValue, dear.houseValue);
+  assert.ok(dear.monthly > cheap.monthly);
+});
+
+test("higher LVR buys a bigger house on the same deposit", () => {
+  const low = projectStrategies({ ...base, lvr: 0.6 })[0];
+  const high = projectStrategies({ ...base, lvr: 0.9 })[0];
+  assert.ok(Math.abs(low.houseValue - 62500) < 1, `got ${low.houseValue}`);
+  assert.ok(Math.abs(high.houseValue - 250000) < 1, `got ${high.houseValue}`);
 });
