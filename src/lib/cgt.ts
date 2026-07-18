@@ -1,11 +1,12 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
 //
-// The monthly amount is the investor's cashflow. For property it fully
-// services an interest-only loan (max loan = monthly x 12 / mortgage rate),
-// the LVR sets the house value, and the implied deposit is paid upfront. The
-// share strategies receive that same deposit as an upfront lump sum plus the
-// monthly amount, so every line reflects the same total cash outlay.
+// The monthly amount is the investor's cashflow and the initial investment
+// is their starting cash. For property the monthly amount fully services an
+// interest-only loan (max loan = monthly x 12 / mortgage rate) and the
+// initial investment is the deposit, so house value = loan + deposit. The
+// share strategies invest the same initial amount as an upfront lump sum
+// plus the monthly amount, so every line reflects the same total outlay.
 //
 // Simplifications: constant salary/brackets and rates, all parcels acquired
 // post-2027, rent covers the property's running costs (interest is the
@@ -19,8 +20,8 @@ export interface CgtInputs {
   sharesReturn: number;
   /** property annual valuation growth */
   propertyReturn: number;
-  /** loan-to-value ratio 0.05..0.95 — house value = loan / LVR */
-  propertyLvr: number;
+  /** upfront cash: house deposit, or the initial share investment */
+  initialInvestment: number;
   /** interest-only mortgage rate */
   mortgageRate: number;
   inflation: number;
@@ -88,8 +89,8 @@ export function newEffectiveRate(
 export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
   const loan = (inputs.monthly * 12) / inputs.mortgageRate;
-  const houseValue = loan / inputs.propertyLvr;
-  const deposit = houseValue - loan;
+  const deposit = inputs.initialInvestment;
+  const houseValue = loan + deposit;
   const points: CgtPoint[] = [];
 
   for (let age = 31; age <= 60; age++) {
