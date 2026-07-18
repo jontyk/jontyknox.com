@@ -397,3 +397,6 @@
 /* --- CGT explorer: loan summary line --- */
 .cgt-loan { font-size: 0.9rem; margin: 0 0 0.75rem; color: var(--ledger-muted); }
 .cgt-loan strong { color: var(--ledger-ink); }
+
+/* --- CGT explorer: zero axis --- */
+.cgt-zero { stroke: var(--ledger-ink); stroke-opacity: 0.5; stroke-width: 1.5; }
