@@ -7,9 +7,13 @@ const H = 330;
 const PAD = { top: 16, right: 16, bottom: 30, left: 58 };
 const INFLATION = 0.026;
 
-const fmtMoney = (v: number) =>
-  "$" + (v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + "m" : Math.round(v / 1000) + "k");
-const fmtFull = (v: number) => "$" + Math.round(v).toLocaleString("en-AU");
+const fmtMoney = (v: number) => {
+  const sign = v < 0 ? "−" : "";
+  const a = Math.abs(v);
+  return sign + "$" + (a >= 1_000_000 ? (a / 1_000_000).toFixed(2) + "m" : Math.round(a / 1000) + "k");
+};
+const fmtFull = (v: number) =>
+  (v < 0 ? "−" : "") + "$" + Math.abs(Math.round(v)).toLocaleString("en-AU");
 
 export function mountCgtExplorer(): void {
   const host = document.getElementById("cgt-explorer");
@@ -61,7 +65,6 @@ export function mountCgtExplorer(): void {
   let hoverAge = 60;
 
   const x = (age: number) => PAD.left + ((age - 31) / 29) * (W - PAD.left - PAD.right);
-  const y = (v: number, max: number) => H - PAD.bottom - (v / max) * (H - PAD.top - PAD.bottom);
 
   function state() {
     const get = (k: string) => Number(sliders.find((s) => s.dataset.k === k)!.value);
@@ -106,35 +109,42 @@ export function mountCgtExplorer(): void {
         : `rent covers the interest.`) +
       ` The same <strong>${fmtFull(first.deposit)}</strong> in shares just compounds.`;
 
-    const last = points[points.length - 1];
-    const max =
-      Math.max(last.sharesOldNet, last.sharesNewNet, last.propertyNet, last.existingNet) * 1.08;
-    const line = (key: "sharesOldNet" | "sharesNewNet" | "propertyNet" | "existingNet") =>
-      points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(Math.max(0, p[key]), max).toFixed(1)}`).join("");
+    const keys = ["sharesOldNet", "sharesNewNet", "propertyNet", "existingNet"] as const;
+    const all = points.flatMap((p) => keys.map((k) => p[k]));
+    const max = Math.max(...all) * 1.08;
+    const min = Math.min(0, ...all) * 1.08;
+    const yv = (v: number) =>
+      H - PAD.bottom - ((v - min) / (max - min)) * (H - PAD.top - PAD.bottom);
+    const line = (key: (typeof keys)[number]) =>
+      points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${yv(p[key]).toFixed(1)}`).join("");
 
     const yTicks = [0.25, 0.5, 0.75, 1].map((f) => {
-      const v = max * f;
-      return `<line x1="${PAD.left}" x2="${W - PAD.right}" y1="${y(v, max)}" y2="${y(v, max)}" class="cgt-grid"/>
-        <text x="${PAD.left - 8}" y="${y(v, max) + 4}" text-anchor="end" class="cgt-tick">${fmtMoney(v)}</text>`;
+      const v = min + (max - min) * f;
+      return `<line x1="${PAD.left}" x2="${W - PAD.right}" y1="${yv(v)}" y2="${yv(v)}" class="cgt-grid"/>
+        <text x="${PAD.left - 8}" y="${yv(v) + 4}" text-anchor="end" class="cgt-tick">${fmtMoney(v)}</text>`;
     }).join("");
+    const zeroLine = min < 0
+      ? `<line x1="${PAD.left}" x2="${W - PAD.right}" y1="${yv(0)}" y2="${yv(0)}" class="cgt-zero"/>
+        <text x="${PAD.left - 8}" y="${yv(0) + 4}" text-anchor="end" class="cgt-tick">$0</text>`
+      : "";
     const xTicks = [35, 40, 45, 50, 55, 60].map((age) =>
       `<text x="${x(age)}" y="${H - 10}" text-anchor="middle" class="cgt-tick">${age}</text>`).join("");
 
     const hp = points.find((p) => p.age === hoverAge)!;
-    const gapPath = points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${y(p.sharesOldNet, max).toFixed(1)}`).join("")
-      + points.slice().reverse().map((p) => `L${x(p.age).toFixed(1)},${y(p.sharesNewNet, max).toFixed(1)}`).join("") + "Z";
+    const gapPath = points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${yv(p.sharesOldNet).toFixed(1)}`).join("")
+      + points.slice().reverse().map((p) => `L${x(p.age).toFixed(1)},${yv(p.sharesNewNet).toFixed(1)}`).join("") + "Z";
 
-    svg.innerHTML = `${yTicks}${xTicks}
+    svg.innerHTML = `${yTicks}${zeroLine}${xTicks}
       <path d="${gapPath}" class="cgt-gap"/>
       <path d="${line("existingNet")}" class="cgt-line cgt-line-exist"/>
       <path d="${line("propertyNet")}" class="cgt-line cgt-line-prop"/>
       <path d="${line("sharesOldNet")}" class="cgt-line cgt-line-old"/>
       <path d="${line("sharesNewNet")}" class="cgt-line cgt-line-new"/>
       <line x1="${x(hoverAge)}" x2="${x(hoverAge)}" y1="${PAD.top}" y2="${H - PAD.bottom}" class="cgt-cursor"/>
-      <circle cx="${x(hoverAge)}" cy="${y(Math.max(0, hp.existingNet), max)}" r="4" class="cgt-dot-exist"/>
-      <circle cx="${x(hoverAge)}" cy="${y(Math.max(0, hp.propertyNet), max)}" r="4" class="cgt-dot-prop"/>
-      <circle cx="${x(hoverAge)}" cy="${y(hp.sharesOldNet, max)}" r="4" class="cgt-dot-old"/>
-      <circle cx="${x(hoverAge)}" cy="${y(hp.sharesNewNet, max)}" r="4" class="cgt-dot-new"/>`;
+      <circle cx="${x(hoverAge)}" cy="${yv(hp.existingNet)}" r="4" class="cgt-dot-exist"/>
+      <circle cx="${x(hoverAge)}" cy="${yv(hp.propertyNet)}" r="4" class="cgt-dot-prop"/>
+      <circle cx="${x(hoverAge)}" cy="${yv(hp.sharesOldNet)}" r="4" class="cgt-dot-old"/>
+      <circle cx="${x(hoverAge)}" cy="${yv(hp.sharesNewNet)}" r="4" class="cgt-dot-new"/>`;
 
     const extra = hp.sharesOldNet - hp.sharesNewNet;
     readout.innerHTML =
