@@ -1,8 +1,16 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
-// Simplifications: constant salary/brackets, all parcels acquired post-2027,
-// unleveraged monthly contributions, CGT assessed at the investor's marginal
-// rate without bracket creep from the gain itself.
+//
+// The monthly amount is the investor's cashflow. For property it fully
+// services an interest-only loan (max loan = monthly x 12 / mortgage rate),
+// the LVR sets the house value, and the implied deposit is paid upfront. The
+// share strategies receive that same deposit as an upfront lump sum plus the
+// monthly amount, so every line reflects the same total cash outlay.
+//
+// Simplifications: constant salary/brackets and rates, all parcels acquired
+// post-2027, rent covers the property's running costs (interest is the
+// owner's monthly payment), negative-gearing refunds not modelled, CGT
+// assessed at the investor's marginal rate without bracket creep.
 
 export interface CgtInputs {
   salary: number;
@@ -11,27 +19,29 @@ export interface CgtInputs {
   sharesReturn: number;
   /** property annual valuation growth */
   propertyReturn: number;
-  /**
-   * loan-to-value ratio 0..0.9 — each deposit dollar controls 1/(1-LVR) of
-   * property on an interest-only loan, with rent assumed to cover interest
-   * and running costs (neutral gearing)
-   */
+  /** loan-to-value ratio 0.05..0.95 — house value = loan / LVR */
   propertyLvr: number;
+  /** interest-only mortgage rate */
+  mortgageRate: number;
   inflation: number;
 }
 
 export interface CgtPoint {
   age: number;
-  sharesValue: number;
-  propertyValue: number;
+  loan: number;
+  houseValue: number;
+  deposit: number;
+  /** total cash outlay to date: deposit + monthly payments */
   contributed: number;
+  /** gross share portfolio value (deposit lump sum + monthly parcels) */
+  sharesValue: number;
   /** shares taxed with the 50% discount — the pre-2027 deal */
   sharesOldNet: number;
   /** shares taxed with indexation + 30% minimum — the post-2027 deal */
   sharesNewNet: number;
-  /** new-build property, which keeps the 50% discount under the new rules */
+  /** new-build property equity net of CGT (keeps the 50% discount) */
   propertyNet: number;
-  /** established house: same leveraged growth, taxed like shares post-2027 */
+  /** established house: same growth, taxed like shares post-2027 */
   existingNet: number;
 }
 
@@ -70,59 +80,58 @@ export function newEffectiveRate(
 }
 
 /**
- * Put the same `monthly` amount into each of three strategies from age 30 and
- * sell everything at each age 31-60, taxing each monthly parcel on its own
- * holding period: shares under the old rules, shares under the new rules, and
- * new-build property (own growth rate, keeps the 50% discount).
+ * Deploy the same cashflow four ways from age 30 and sell at each age 31-60:
+ * shares under the old rules, shares under the new rules, a new-build house
+ * and an established house — both houses bought at age 30 with the max
+ * interest-only loan the monthly payment services.
  */
 export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
+  const loan = (inputs.monthly * 12) / inputs.mortgageRate;
+  const houseValue = loan / inputs.propertyLvr;
+  const deposit = houseValue - loan;
   const points: CgtPoint[] = [];
 
   for (let age = 31; age <= 60; age++) {
     const years = age - 30;
     let sharesValue = 0;
-    let propertyValue = 0;
     let sharesOldTax = 0;
     let sharesNewTax = 0;
-    let propertyTax = 0;
-    let existingTax = 0;
 
-    for (let month = 0; month < years * 12; month++) {
-      const hold = years - month / 12;
-
-      const shareParcel = inputs.monthly * Math.pow(1 + inputs.sharesReturn, hold);
-      const shareGain = shareParcel - inputs.monthly;
-      sharesValue += shareParcel;
-      if (shareGain > 0) {
-        sharesOldTax += shareGain * oldEffectiveRate(m);
+    const shareParcel = (amount: number, hold: number) => {
+      const value = amount * Math.pow(1 + inputs.sharesReturn, hold);
+      const gain = value - amount;
+      sharesValue += value;
+      if (gain > 0) {
+        sharesOldTax += gain * oldEffectiveRate(m);
         sharesNewTax +=
-          shareGain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, hold);
+          gain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, hold);
       }
+    };
 
-      // Each monthly deposit controls leverage x its value of property; the
-      // debt is repaid at sale, so equity = deposit + leverage x growth, and
-      // CGT falls on the whole leveraged nominal gain.
-      const leverage = 1 / (1 - inputs.propertyLvr);
-      const propGain =
-        inputs.monthly * leverage * (Math.pow(1 + inputs.propertyReturn, hold) - 1);
-      propertyValue += inputs.monthly + propGain;
-      if (propGain > 0) {
-        propertyTax += propGain * oldEffectiveRate(m);
-        existingTax +=
-          propGain * newEffectiveRate(m, inputs.propertyReturn, inputs.inflation, hold);
-      }
+    shareParcel(deposit, years);
+    for (let month = 0; month < years * 12; month++) {
+      shareParcel(inputs.monthly, years - month / 12);
     }
+
+    const houseNow = houseValue * Math.pow(1 + inputs.propertyReturn, years);
+    const houseGain = Math.max(0, houseNow - houseValue);
+    const grossEquity = houseNow - loan;
+    const newBuildTax = houseGain * oldEffectiveRate(m);
+    const existingTax =
+      houseGain * newEffectiveRate(m, inputs.propertyReturn, inputs.inflation, years);
 
     points.push({
       age,
+      loan,
+      houseValue,
+      deposit,
+      contributed: deposit + inputs.monthly * years * 12,
       sharesValue,
-      propertyValue,
-      contributed: inputs.monthly * years * 12,
       sharesOldNet: sharesValue - sharesOldTax,
       sharesNewNet: sharesValue - sharesNewTax,
-      propertyNet: propertyValue - propertyTax,
-      existingNet: propertyValue - existingTax,
+      propertyNet: grossEquity - newBuildTax,
+      existingNet: grossEquity - existingTax,
     });
   }
   return points;
