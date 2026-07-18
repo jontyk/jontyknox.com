@@ -1,16 +1,15 @@
 // CGT comparison model for the 2026 reforms: old regime (50% discount) vs
 // new regime from July 2027 (inflation-indexed cost base, 30% minimum rate).
 //
-// The initial investment is the buyer's deposit and the LVR is what the
-// bank will lend against the house, so house value = deposit / (1 - LVR)
-// and the interest-only payment on the loan falls out (loan x rate / 12).
-// The share strategies invest the same deposit as an upfront lump sum plus
-// that same monthly payment, so every line reflects the same total outlay.
+// One upfront investment, no added capital over time. For shares the initial
+// amount buys a portfolio that compounds untouched. For property it is the
+// deposit on an interest-only loan at the bank's LVR (house = deposit /
+// (1 - LVR)); rent is assumed to cover interest and running costs, so the
+// only cashflow either strategy ever sees is the initial investment.
 //
-// Simplifications: constant salary/brackets and rates, all parcels acquired
-// post-2027, rent covers the property's running costs (interest is the
-// owner's monthly payment), negative-gearing refunds not modelled, CGT
-// assessed at the investor's marginal rate without bracket creep.
+// Simplifications: constant salary/brackets, all assets acquired post-2027,
+// negative-gearing refunds not modelled, CGT assessed at the investor's
+// marginal rate without bracket creep.
 
 export interface CgtInputs {
   salary: number;
@@ -18,12 +17,10 @@ export interface CgtInputs {
   sharesReturn: number;
   /** property annual valuation growth */
   propertyReturn: number;
-  /** upfront cash: house deposit, or the initial share investment */
+  /** upfront cash: house deposit, or the share lump sum */
   initialInvestment: number;
   /** loan-to-value ratio the bank lends at, 0.5..0.95 */
   lvr: number;
-  /** interest-only mortgage rate */
-  mortgageRate: number;
   inflation: number;
 }
 
@@ -32,11 +29,7 @@ export interface CgtPoint {
   loan: number;
   houseValue: number;
   deposit: number;
-  /** derived interest-only payment, also invested monthly in shares */
-  monthly: number;
-  /** total cash outlay to date: deposit + monthly payments */
-  contributed: number;
-  /** gross share portfolio value (deposit lump sum + monthly parcels) */
+  /** gross share portfolio value */
   sharesValue: number;
   /** shares taxed with the 50% discount — the pre-2027 deal */
   sharesOldNet: number;
@@ -83,40 +76,26 @@ export function newEffectiveRate(
 }
 
 /**
- * Deploy the same cashflow four ways from age 30 and sell at each age 31-60:
+ * Deploy the same lump sum four ways at age 30 and sell at each age 31-60:
  * shares under the old rules, shares under the new rules, a new-build house
- * and an established house — both houses bought at age 30 with the max
- * interest-only loan priced by the bank's LVR and mortgage rate.
+ * and an established house — both houses bought with the deposit geared to
+ * the bank's LVR.
  */
 export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
   const deposit = inputs.initialInvestment;
   const houseValue = deposit / (1 - inputs.lvr);
   const loan = houseValue - deposit;
-  const monthly = (loan * inputs.mortgageRate) / 12;
   const points: CgtPoint[] = [];
 
   for (let age = 31; age <= 60; age++) {
     const years = age - 30;
-    let sharesValue = 0;
-    let sharesOldTax = 0;
-    let sharesNewTax = 0;
 
-    const shareParcel = (amount: number, hold: number) => {
-      const value = amount * Math.pow(1 + inputs.sharesReturn, hold);
-      const gain = value - amount;
-      sharesValue += value;
-      if (gain > 0) {
-        sharesOldTax += gain * oldEffectiveRate(m);
-        sharesNewTax +=
-          gain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, hold);
-      }
-    };
-
-    shareParcel(deposit, years);
-    for (let month = 0; month < years * 12; month++) {
-      shareParcel(monthly, years - month / 12);
-    }
+    const sharesValue = deposit * Math.pow(1 + inputs.sharesReturn, years);
+    const sharesGain = Math.max(0, sharesValue - deposit);
+    const sharesOldTax = sharesGain * oldEffectiveRate(m);
+    const sharesNewTax =
+      sharesGain * newEffectiveRate(m, inputs.sharesReturn, inputs.inflation, years);
 
     const houseNow = houseValue * Math.pow(1 + inputs.propertyReturn, years);
     const houseGain = Math.max(0, houseNow - houseValue);
@@ -130,8 +109,6 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
       loan,
       houseValue,
       deposit,
-      monthly,
-      contributed: deposit + monthly * years * 12,
       sharesValue,
       sharesOldNet: sharesValue - sharesOldTax,
       sharesNewNet: sharesValue - sharesNewTax,
