@@ -45,6 +45,9 @@ const base: CgtInputs = {
   propertyReturn: 0.06,
   initialInvestment: 25000,
   lvr: 0.8,
+  mortgageRate: 0.06,
+  // High yield so rent always covers interest: no shortfall in the base case.
+  rentalYield: 0.06,
   inflation: 0.026,
 };
 
@@ -113,4 +116,47 @@ test("higher LVR buys a bigger house on the same deposit", () => {
   const high = projectStrategies({ ...base, lvr: 0.9 })[0];
   assert.ok(Math.abs(low.houseValue - 62500) < 1, `got ${low.houseValue}`);
   assert.ok(Math.abs(high.houseValue - 250000) < 1, `got ${high.houseValue}`);
+});
+
+test("no shortfall accrues while rent covers the interest", () => {
+  // 6% yield on a $125k house ($7.5k rent) vs 6% on the $100k loan ($6k).
+  const last = projectStrategies(base)[29];
+  assert.equal(last.shortfall, 0);
+});
+
+test("mortgage rate and yield touch the property lines only", () => {
+  const a = projectStrategies(base)[29];
+  const b = projectStrategies({ ...base, mortgageRate: 0.09, rentalYield: 0.02 })[29];
+  assert.equal(a.sharesOldNet, b.sharesOldNet);
+  assert.equal(a.sharesNewNet, b.sharesNewNet);
+  assert.ok(b.propertyNet < a.propertyNet);
+});
+
+test("negative gearing: new build deducts the shortfall, established pays it in full", () => {
+  // Zero rent makes the shortfall the whole interest bill each year.
+  const zeroRent = projectStrategies({ ...base, rentalYield: 0 });
+  const withRent = projectStrategies(base);
+  const last = zeroRent[29];
+  const covered = withRent[29];
+  const m = marginalRate(base.salary);
+  const interest30y = 100000 * 0.06 * 30;
+  assert.ok(Math.abs(last.shortfall - interest30y) < 1, `got ${last.shortfall}`);
+  // New build bears (1-m) of the shortfall, established bears all of it.
+  assert.ok(Math.abs(covered.propertyNet - last.propertyNet - interest30y * (1 - m)) < 1);
+  assert.ok(Math.abs(covered.existingNet - last.existingNet - interest30y) < 1);
+});
+
+test("first-year shortfall uses rent on the purchase price", () => {
+  // 2% yield on $125k = $2.5k rent vs $6k interest: $3.5k shortfall in year one.
+  const first = projectStrategies({ ...base, rentalYield: 0.02 })[0];
+  assert.ok(Math.abs(first.shortfall - 3500) < 1, `got ${first.shortfall}`);
+});
+
+test("growing rent can close the gearing gap over time", () => {
+  // Start negative (2% yield), 6% growth: rent eventually overtakes interest
+  // and the annual shortfall stops accruing.
+  const points = projectStrategies({ ...base, rentalYield: 0.02 });
+  const annual = points.map((p, i) => p.shortfall - (i ? points[i - 1].shortfall : 0));
+  assert.ok(annual[0] > 0);
+  assert.equal(annual[29], 0);
 });
