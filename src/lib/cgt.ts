@@ -30,6 +30,10 @@ export interface CgtInputs {
   mortgageRate: number;
   /** net rental yield on the current house value */
   rentalYield: number;
+  /** age when the lump sum is invested */
+  startAge: number;
+  /** final sale age charted */
+  endAge: number;
   inflation: number;
 }
 
@@ -89,10 +93,10 @@ export function newEffectiveRate(
 }
 
 /**
- * Deploy the same lump sum four ways at age 30 and sell at each age 31-60:
- * shares under the old rules, shares under the new rules, a new-build house
- * and an established house — both houses bought with the deposit geared to
- * the bank's LVR.
+ * Deploy the same lump sum four ways at startAge and sell at each age up to
+ * endAge: shares under the old rules, shares under the new rules, a
+ * new-build house and an established house — both houses bought with the
+ * deposit geared to the bank's LVR.
  */
 export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const m = marginalRate(inputs.salary);
@@ -104,8 +108,8 @@ export function projectStrategies(inputs: CgtInputs): CgtPoint[] {
   const interest = loan * inputs.mortgageRate;
   let shortfall = 0;
 
-  for (let age = 31; age <= 60; age++) {
-    const years = age - 30;
+  for (let age = inputs.startAge + 1; age <= inputs.endAge; age++) {
+    const years = age - inputs.startAge;
 
     // Shortfall for the year just held: rent on the start-of-year value.
     const rent =

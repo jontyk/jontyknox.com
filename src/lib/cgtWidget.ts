@@ -34,7 +34,11 @@ export function mountCgtExplorer(): void {
       <label>Shares return <output></output>
         <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
       <label>Property growth <output></output>
-        <input type="range" data-k="propRet" min="2" max="12" step="0.5" value="2" /></label>
+        <input type="range" data-k="propRet" min="-2" max="12" step="0.5" value="2" /></label>
+      <label>Starting age <output></output>
+        <input type="range" data-k="startAge" min="18" max="55" step="1" value="30" /></label>
+      <label>Final sale age <output></output>
+        <input type="range" data-k="endAge" min="25" max="75" step="1" value="60" /></label>
     </div>
     <p class="cgt-loan"></p>
     <p class="cgt-legend">
@@ -62,12 +66,12 @@ export function mountCgtExplorer(): void {
   const readout = host.querySelector(".cgt-readout")!;
   const loanLine = host.querySelector(".cgt-loan")!;
   const sliders = Array.from(host.querySelectorAll<HTMLInputElement>("input[type=range]"));
-  let hoverAge = 60;
-
-  const x = (age: number) => PAD.left + ((age - 31) / 29) * (W - PAD.left - PAD.right);
+  let hoverAge: number | null = null;
 
   function state() {
     const get = (k: string) => Number(sliders.find((s) => s.dataset.k === k)!.value);
+    const startAge = get("startAge");
+    const endAge = Math.max(startAge + 5, get("endAge"));
     return {
       salary: get("salary"),
       sharesReturn: get("sharesRet") / 100,
@@ -76,6 +80,8 @@ export function mountCgtExplorer(): void {
       lvr: get("lvr") / 100,
       mortgageRate: get("mortRate") / 100,
       rentalYield: get("rentYield") / 100,
+      startAge,
+      endAge,
       inflation: INFLATION,
     };
   }
@@ -90,9 +96,14 @@ export function mountCgtExplorer(): void {
       lvr: Math.round(s.lvr * 100) + "% LVR",
       mortRate: (s.mortgageRate * 100).toFixed(2).replace(/\.?0+$/, "") + "% interest-only",
       rentYield: (s.rentalYield * 100).toFixed(2).replace(/\.?0+$/, "") + "% net",
+      startAge: String(s.startAge),
+      endAge: String(s.endAge),
     };
     for (const slider of sliders)
       slider.parentElement!.querySelector("output")!.textContent = labels[slider.dataset.k!];
+
+    const x = (age: number) =>
+      PAD.left + ((age - s.startAge - 1) / (s.endAge - s.startAge - 1)) * (W - PAD.left - PAD.right);
 
     const points = projectStrategies(s);
     const first = points[0];
@@ -127,10 +138,15 @@ export function mountCgtExplorer(): void {
       ? `<line x1="${PAD.left}" x2="${W - PAD.right}" y1="${yv(0)}" y2="${yv(0)}" class="cgt-zero"/>
         <text x="${PAD.left - 8}" y="${yv(0) + 4}" text-anchor="end" class="cgt-tick">$0</text>`
       : "";
-    const xTicks = [35, 40, 45, 50, 55, 60].map((age) =>
+    const span = s.endAge - s.startAge - 1;
+    const stepAge = span > 30 ? 10 : span > 12 ? 5 : span > 6 ? 2 : 1;
+    const ages: number[] = [];
+    for (let a = Math.ceil((s.startAge + 1) / stepAge) * stepAge; a <= s.endAge; a += stepAge) ages.push(a);
+    const xTicks = ages.map((age) =>
       `<text x="${x(age)}" y="${H - 10}" text-anchor="middle" class="cgt-tick">${age}</text>`).join("");
 
-    const hp = points.find((p) => p.age === hoverAge)!;
+    const focusAge = Math.min(s.endAge, Math.max(s.startAge + 1, hoverAge ?? s.endAge));
+    const hp = points.find((p) => p.age === focusAge)!;
     const gapPath = points.map((p, i) => `${i ? "L" : "M"}${x(p.age).toFixed(1)},${yv(p.sharesOldNet).toFixed(1)}`).join("")
       + points.slice().reverse().map((p) => `L${x(p.age).toFixed(1)},${yv(p.sharesNewNet).toFixed(1)}`).join("") + "Z";
 
@@ -140,11 +156,11 @@ export function mountCgtExplorer(): void {
       <path d="${line("propertyNet")}" class="cgt-line cgt-line-prop"/>
       <path d="${line("sharesOldNet")}" class="cgt-line cgt-line-old"/>
       <path d="${line("sharesNewNet")}" class="cgt-line cgt-line-new"/>
-      <line x1="${x(hoverAge)}" x2="${x(hoverAge)}" y1="${PAD.top}" y2="${H - PAD.bottom}" class="cgt-cursor"/>
-      <circle cx="${x(hoverAge)}" cy="${yv(hp.existingNet)}" r="4" class="cgt-dot-exist"/>
-      <circle cx="${x(hoverAge)}" cy="${yv(hp.propertyNet)}" r="4" class="cgt-dot-prop"/>
-      <circle cx="${x(hoverAge)}" cy="${yv(hp.sharesOldNet)}" r="4" class="cgt-dot-old"/>
-      <circle cx="${x(hoverAge)}" cy="${yv(hp.sharesNewNet)}" r="4" class="cgt-dot-new"/>`;
+      <line x1="${x(focusAge)}" x2="${x(focusAge)}" y1="${PAD.top}" y2="${H - PAD.bottom}" class="cgt-cursor"/>
+      <circle cx="${x(focusAge)}" cy="${yv(hp.existingNet)}" r="4" class="cgt-dot-exist"/>
+      <circle cx="${x(focusAge)}" cy="${yv(hp.propertyNet)}" r="4" class="cgt-dot-prop"/>
+      <circle cx="${x(focusAge)}" cy="${yv(hp.sharesOldNet)}" r="4" class="cgt-dot-old"/>
+      <circle cx="${x(focusAge)}" cy="${yv(hp.sharesNewNet)}" r="4" class="cgt-dot-new"/>`;
 
     const extra = hp.sharesOldNet - hp.sharesNewNet;
     readout.innerHTML =
@@ -161,12 +177,14 @@ export function mountCgtExplorer(): void {
   }
 
   svg.addEventListener("mousemove", (e) => {
+    const s = state();
     const rect = svg.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * W;
-    hoverAge = Math.min(60, Math.max(31, Math.round(31 + ((px - PAD.left) / (W - PAD.left - PAD.right)) * 29)));
+    const frac = (px - PAD.left) / (W - PAD.left - PAD.right);
+    hoverAge = Math.round(s.startAge + 1 + frac * (s.endAge - s.startAge - 1));
     render();
   });
-  svg.addEventListener("mouseleave", () => { hoverAge = 60; render(); });
+  svg.addEventListener("mouseleave", () => { hoverAge = null; render(); });
   for (const slider of sliders) slider.addEventListener("input", render);
   render();
 }

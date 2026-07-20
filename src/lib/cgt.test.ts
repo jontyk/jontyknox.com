@@ -48,6 +48,8 @@ const base: CgtInputs = {
   mortgageRate: 0.06,
   // High yield so rent always covers interest: no shortfall in the base case.
   rentalYield: 0.06,
+  startAge: 30,
+  endAge: 60,
   inflation: 0.026,
 };
 
@@ -56,6 +58,29 @@ test("projectStrategies returns one point per age 31-60", () => {
   assert.equal(points.length, 30);
   assert.equal(points[0].age, 31);
   assert.equal(points[29].age, 60);
+});
+
+test("age range is configurable", () => {
+  const points = projectStrategies({ ...base, startAge: 25, endAge: 40 });
+  assert.equal(points.length, 15);
+  assert.equal(points[0].age, 26);
+  assert.equal(points[14].age, 40);
+  // Same horizon length means the same outcomes regardless of calendar age
+  const shifted = projectStrategies({ ...base, startAge: 40, endAge: 55 });
+  assert.equal(points[14].sharesOldNet, shifted[14].sharesOldNet);
+});
+
+test("negative property growth: falling house, no CGT, equity can sink", () => {
+  // 3% rate keeps rent above interest even as the house falls, isolating equity.
+  const points = projectStrategies({ ...base, propertyReturn: -0.02, lvr: 0.9, mortgageRate: 0.03 });
+  const last = points[points.length - 1];
+  // $25k deposit, 90% LVR: $250k house, $225k loan. At -2%/yr for 30y the
+  // house is worth ~$137k — deep under the loan.
+  const houseNow = 250000 * Math.pow(0.98, 30);
+  assert.ok(Math.abs(last.propertyNet - (houseNow - 225000)) < 1, `got ${last.propertyNet}`);
+  assert.ok(last.propertyNet < 0);
+  // No gain, so new build and established differ only by holding costs
+  assert.ok(last.existingNet <= last.propertyNet);
 });
 
 test("house and loan derive from deposit and LVR", () => {
