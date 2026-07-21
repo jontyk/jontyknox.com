@@ -21,24 +21,43 @@ export function mountCgtExplorer(): void {
 
   host.innerHTML = `
     <div class="cgt-controls">
-      <label>Salary <output></output>
-        <input type="range" data-k="salary" min="45000" max="250000" step="5000" value="100000" /></label>
-      <label>Initial investment <output></output>
-        <input type="range" data-k="initial" min="5000" max="200000" step="5000" value="25000" /></label>
-      <label>Bank gearing <output></output>
-        <input type="range" data-k="lvr" min="50" max="95" step="5" value="80" /></label>
-      <label>Mortgage rate <output></output>
-        <input type="range" data-k="mortRate" min="3" max="9" step="0.25" value="6" /></label>
-      <label>Rental yield <output></output>
-        <input type="range" data-k="rentYield" min="0" max="6" step="0.25" value="3.5" /></label>
-      <label>Shares return <output></output>
-        <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
-      <label>Property growth <output></output>
-        <input type="range" data-k="propRet" min="-2" max="12" step="0.5" value="2" /></label>
-      <label>Starting age <output></output>
-        <input type="range" data-k="startAge" min="18" max="55" step="1" value="30" /></label>
-      <label>Final sale age <output></output>
-        <input type="range" data-k="endAge" min="25" max="75" step="1" value="60" /></label>
+      <div class="cgt-group">
+        <h4 class="cgt-group-title">You</h4>
+        <div class="cgt-group-fields">
+          <label>Salary <output></output>
+            <input type="range" data-k="salary" min="45000" max="250000" step="5000" value="100000" /></label>
+          <label>Initial investment <output></output>
+            <input type="range" data-k="initial" min="5000" max="200000" step="5000" value="25000" /></label>
+          <div class="cgt-field cgt-field-wide">
+            <span class="cgt-field-head">Age range <output data-age></output></span>
+            <div class="cgt-range">
+              <div class="cgt-range-track"><div class="cgt-range-fill"></div></div>
+              <input type="range" data-k="startAge" min="18" max="75" step="1" value="30" aria-label="Starting age" />
+              <input type="range" data-k="endAge" min="18" max="75" step="1" value="60" aria-label="Final sale age" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cgt-group">
+        <h4 class="cgt-group-title">Growth assumptions</h4>
+        <div class="cgt-group-fields">
+          <label>Shares return <output></output>
+            <input type="range" data-k="sharesRet" min="3" max="12" step="0.5" value="8" /></label>
+          <label>Property growth <output></output>
+            <input type="range" data-k="propRet" min="-2" max="12" step="0.5" value="2" /></label>
+        </div>
+      </div>
+      <div class="cgt-group">
+        <h4 class="cgt-group-title">The mortgage</h4>
+        <div class="cgt-group-fields">
+          <label>Bank gearing <output></output>
+            <input type="range" data-k="lvr" min="50" max="95" step="5" value="80" /></label>
+          <label>Mortgage rate <output></output>
+            <input type="range" data-k="mortRate" min="3" max="9" step="0.25" value="6" /></label>
+          <label>Rental yield <output></output>
+            <input type="range" data-k="rentYield" min="0" max="6" step="0.25" value="3.5" /></label>
+        </div>
+      </div>
     </div>
     <p class="cgt-loan"></p>
     <p class="cgt-legend">
@@ -62,16 +81,24 @@ export function mountCgtExplorer(): void {
     between the two property lines is purely that tax treatment, since negative-gearing refunds are not
     modelled. Ignores stamp duty, vacancies and rate risk. Illustrative only — not financial advice.</p>`;
 
+  const AGE_MIN = 18;
+  const AGE_MAX = 75;
+  const AGE_GAP = 5;
+
   const svg = host.querySelector("svg")!;
   const readout = host.querySelector(".cgt-readout")!;
   const loanLine = host.querySelector(".cgt-loan")!;
+  const ageOut = host.querySelector<HTMLOutputElement>("output[data-age]")!;
+  const ageFill = host.querySelector<HTMLElement>(".cgt-range-fill")!;
   const sliders = Array.from(host.querySelectorAll<HTMLInputElement>("input[type=range]"));
+  const startInput = sliders.find((s) => s.dataset.k === "startAge")!;
+  const endInput = sliders.find((s) => s.dataset.k === "endAge")!;
   let hoverAge: number | null = null;
 
   function state() {
     const get = (k: string) => Number(sliders.find((s) => s.dataset.k === k)!.value);
     const startAge = get("startAge");
-    const endAge = Math.max(startAge + 5, get("endAge"));
+    const endAge = Math.max(startAge + AGE_GAP, get("endAge"));
     return {
       salary: get("salary"),
       sharesReturn: get("sharesRet") / 100,
@@ -96,11 +123,17 @@ export function mountCgtExplorer(): void {
       lvr: Math.round(s.lvr * 100) + "% LVR",
       mortRate: (s.mortgageRate * 100).toFixed(2).replace(/\.?0+$/, "") + "% interest-only",
       rentYield: (s.rentalYield * 100).toFixed(2).replace(/\.?0+$/, "") + "% net",
-      startAge: String(s.startAge),
-      endAge: String(s.endAge),
     };
-    for (const slider of sliders)
-      slider.parentElement!.querySelector("output")!.textContent = labels[slider.dataset.k!];
+    for (const slider of sliders) {
+      const k = slider.dataset.k!;
+      if (k === "startAge" || k === "endAge") continue;
+      slider.parentElement!.querySelector("output")!.textContent = labels[k];
+    }
+
+    ageOut.textContent = `${s.startAge}–${s.endAge}`;
+    const pct = (age: number) => ((age - AGE_MIN) / (AGE_MAX - AGE_MIN)) * 100;
+    ageFill.style.left = `${pct(s.startAge)}%`;
+    ageFill.style.width = `${pct(s.endAge) - pct(s.startAge)}%`;
 
     const x = (age: number) =>
       PAD.left + ((age - s.startAge - 1) / (s.endAge - s.startAge - 1)) * (W - PAD.left - PAD.right);
@@ -185,6 +218,19 @@ export function mountCgtExplorer(): void {
     render();
   });
   svg.addEventListener("mouseleave", () => { hoverAge = null; render(); });
-  for (const slider of sliders) slider.addEventListener("input", render);
+
+  // Dual-range age slider: the dragged thumb stops AGE_GAP short of the other.
+  startInput.addEventListener("input", () => {
+    if (+startInput.value > +endInput.value - AGE_GAP) startInput.value = String(+endInput.value - AGE_GAP);
+    render();
+  });
+  endInput.addEventListener("input", () => {
+    if (+endInput.value < +startInput.value + AGE_GAP) endInput.value = String(+startInput.value + AGE_GAP);
+    render();
+  });
+  for (const slider of sliders) {
+    if (slider === startInput || slider === endInput) continue;
+    slider.addEventListener("input", render);
+  }
   render();
 }
