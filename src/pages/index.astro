@@ -139,23 +139,33 @@ const description =
       <h2 class="ledger-kicker">05 / Media</h2>
       <div class="home-media">
         <figure>
-          <img src="/images/jonty-knox-reflection-900.webp" alt="Jonty Knox headshot" width="900" height="600" loading="lazy" decoding="async" />
+          <button class="media-trigger" type="button" data-full-image="/images/jonty-knox-reflection.jpg" data-full-alt="Jonty Knox headshot" aria-label="View full-size photo: Introducing the world to CustomerOS AI Agents in 2024">
+            <img src="/images/jonty-knox-reflection-900.jpg" alt="Jonty Knox headshot" width="900" height="600" loading="lazy" decoding="async" />
+          </button>
           <figcaption>Introducing the world to CustomerOS AI Agents in 2024</figcaption>
         </figure>
         <figure>
-          <img src="/images/jonty-knox-formal-900.webp" alt="Jonty Knox in traditional Scottish black tie" width="602" height="900" loading="lazy" decoding="async" />
+          <button class="media-trigger" type="button" data-full-image="/images/jonty-knox-formal.jpg" data-full-alt="Jonty Knox in traditional Scottish black tie" aria-label="View full-size photo: Jonty in traditional Scottish black tie">
+            <img src="/images/jonty-knox-formal-900.jpg" alt="Jonty Knox in traditional Scottish black tie" width="602" height="900" loading="lazy" decoding="async" />
+          </button>
           <figcaption>Jonty in traditional Scottish black tie (kilt not pictured)</figcaption>
         </figure>
         <figure>
-          <img src="/images/jonty-knox-office-900.webp" alt="Jonty Knox speaking about CustomerOS product strategy" width="900" height="675" loading="lazy" decoding="async" />
+          <button class="media-trigger" type="button" data-full-image="/images/jonty-knox-office.jpg" data-full-alt="Jonty Knox speaking about CustomerOS product strategy" aria-label="View full-size photo: Speaking about CustomerOS's product strategy">
+            <img src="/images/jonty-knox-office-900.jpg" alt="Jonty Knox speaking about CustomerOS product strategy" width="900" height="675" loading="lazy" decoding="async" />
+          </button>
           <figcaption>Speaking about CustomerOS's product strategy</figcaption>
         </figure>
         <figure>
-          <img src="/images/jonty-knox-yc-retreat.webp" alt="Jonty Knox at YC S22 Batch Kickoff in Sonoma" width="400" height="200" loading="lazy" decoding="async" />
+          <button class="media-trigger" type="button" data-full-image="/images/jonty-knox-yc-retreat.jpg" data-full-alt="Jonty Knox at YC S22 Batch Kickoff in Sonoma" aria-label="View full-size photo: Attending the YC S22 Batch Kickoff in Sonoma, California">
+            <img src="/images/jonty-knox-yc-retreat.jpg" alt="Jonty Knox at YC S22 Batch Kickoff in Sonoma" width="400" height="400" loading="lazy" decoding="async" />
+          </button>
           <figcaption>Attending the YC S22 Batch Kickoff in Sonoma, California</figcaption>
         </figure>
         <figure>
-          <img src="/images/jonty-knox-westminster-900.webp" alt="Jonty Knox visiting Westminster" width="900" height="898" loading="lazy" decoding="async" />
+          <button class="media-trigger" type="button" data-full-image="/images/jonty-knox-westminster.jpg" data-full-alt="Jonty Knox visiting Westminster" aria-label="View full-size photo: Visiting Westminster to meet with the UK's Investment Minister">
+            <img src="/images/jonty-knox-westminster-900.jpg" alt="Jonty Knox visiting Westminster" width="900" height="898" loading="lazy" decoding="async" />
+          </button>
           <figcaption>Visiting Westminster to meet with the UK's Investment Minister</figcaption>
         </figure>
       </div>
@@ -175,4 +185,31 @@ const description =
       </ul>
     </section>
   </div>
+
+  <dialog class="media-lightbox" aria-label="Full-size photo">
+    <button class="media-lightbox-close" type="button" aria-label="Close full-size photo">Close</button>
+    <img class="media-lightbox-image" alt="" />
+  </dialog>
 </BlogLayout>
+
+<script is:inline>
+  const lightbox = document.querySelector('.media-lightbox');
+  const lightboxImage = document.querySelector('.media-lightbox-image');
+  const closeLightbox = document.querySelector('.media-lightbox-close');
+
+  document.querySelectorAll('.media-trigger').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      lightboxImage.src = trigger.dataset.fullImage;
+      lightboxImage.alt = trigger.dataset.fullAlt;
+      lightbox.showModal();
+    });
+  });
+
+  closeLightbox.addEventListener('click', () => lightbox.close());
+  lightbox.addEventListener('click', (event) => {
+    if (event.target === lightbox) lightbox.close();
+  });
+  lightbox.addEventListener('close', () => {
+    lightboxImage.removeAttribute('src');
+  });
+</script>
