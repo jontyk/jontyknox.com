@@ -1,6 +1,6 @@
 // Pure endurance-fueling math. No DOM/Astro imports so node --test can load it.
-// Numbers are documented approximations chosen to match published guidance;
-// see docs/superpowers/specs/2026-07-05-fuel-calculator-design.md.
+// Constants are documented approximations chosen to match published fueling
+// guidance; see the rationale comment beside each one below.
 
 export type Intensity = "z60" | "z70" | "z80" | "z90";
 export type GiTraining = "untrained" | "moderate" | "well";
@@ -137,7 +137,7 @@ export interface Recipe {
   saltTsp: number;
   sodiumMg: number;
   sodiumShortfallMg: number;
-  kcal: number;
+  kcal: number; // energy actually delivered (drink + gels), excluding unmetCarbG
   concentrationPct: number;
   warning: Warning;
 }
@@ -235,7 +235,7 @@ export function buildRecipe(i: FuelInputs): Recipe {
     saltTsp: round1(saltG / TSP_SALT_G),
     sodiumMg: Math.round(sodiumMg),
     sodiumShortfallMg: Math.round(sodiumShortfallMg),
-    kcal: Math.round(totalCarbG * KCAL_PER_CARB_G),
+    kcal: Math.round((drinkCarbG + gelCarbG) * KCAL_PER_CARB_G),
     concentrationPct: round1(concentrationPct),
     warning,
   };
@@ -291,8 +291,4 @@ export function buildSchedule(i: FuelInputs): ScheduleRow[] {
     r.sodiumMg = Math.round(recipe.sodiumMg * frac);
   }
   return rows;
-}
-
-export function totalEnergyKcal(i: FuelInputs): number {
-  return buildRecipe(i).kcal;
 }

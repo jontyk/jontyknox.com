@@ -7,6 +7,7 @@ import { basename, join } from "node:path";
 
 const root = new URL(".", import.meta.url);
 
+/** @param {...string} paths */
 function lastCommittedAt(...paths) {
   try {
     return execFileSync(

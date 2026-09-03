@@ -1,6 +1,4 @@
 ---
-import { readFileSync } from "node:fs";
-
 interface Props {
   title: string;
   description: string;
@@ -15,8 +13,14 @@ const { title, description, ogType = "website", stylesheet, noindex = false, pub
 const canonicalUrl = new URL(Astro.url.pathname.replace(/\/$/, "") || "/", Astro.site);
 
 // Inline all page CSS at build time so first render doesn't block on stylesheet requests.
-const readStyle = (name: string) =>
-  readFileSync(new URL(`../../public/styles/${name}.css`, import.meta.url), "utf-8");
+// A Vite raw import (not a public/ copy + fs read) so the .css lives only in
+// src/styles/ and isn't also shipped as standalone files in dist/.
+const cssModules = import.meta.glob<string>("../styles/*.css", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
+const readStyle = (name: string) => cssModules[`../styles/${name}.css`];
 const inlineCss = ["base", "ledger", stylesheet].map(readStyle).join("\n");
 ---
 
