@@ -137,7 +137,7 @@ export interface Recipe {
   saltTsp: number;
   sodiumMg: number;
   sodiumShortfallMg: number;
-  kcal: number;
+  kcal: number; // energy actually delivered (drink + gels), excluding unmetCarbG
   concentrationPct: number;
   warning: Warning;
 }
@@ -235,7 +235,7 @@ export function buildRecipe(i: FuelInputs): Recipe {
     saltTsp: round1(saltG / TSP_SALT_G),
     sodiumMg: Math.round(sodiumMg),
     sodiumShortfallMg: Math.round(sodiumShortfallMg),
-    kcal: Math.round(totalCarbG * KCAL_PER_CARB_G),
+    kcal: Math.round((drinkCarbG + gelCarbG) * KCAL_PER_CARB_G),
     concentrationPct: round1(concentrationPct),
     warning,
   };

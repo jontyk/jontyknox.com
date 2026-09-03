@@ -330,3 +330,23 @@ test("hot weather with a single bottle keeps it as mix", () => {
   assert.equal(one.plainBottles, 0);
   assert.equal(one.mixBottles, 1);
 });
+
+test("kcal counts only the carbs the plan can actually deliver", () => {
+  // Fully-met plan: every target carb is delivered, so kcal tracks the target.
+  const met = buildRecipe({ ...base, hours: 2, minutes: 0, customCarb: 50 });
+  assert.ok(met.unmetCarbG < 0.5, `expected a met plan, got ${met.unmetCarbG} g unmet`);
+  assert.ok(Math.abs(met.kcal - met.totalCarbG * 4) < 2, `${met.kcal} vs ${met.totalCarbG * 4}`);
+
+  // Constrained plan: a long hot ride on one small bottle can't deliver the
+  // target, and kcal must not bill the rider for carbs they never consume.
+  const short = buildRecipe({
+    ...base, hours: 5, minutes: 0, tempC: 30, gi: "untrained",
+    bottleCount: 1, bottleSizeMl: 500,
+  });
+  assert.ok(short.unmetCarbG > 10, `expected an unmet plan, got ${short.unmetCarbG} g unmet`);
+  assert.ok(
+    Math.abs(short.kcal - (short.drinkCarbG + short.gelCarbG) * 4) < 2,
+    `${short.kcal} vs ${(short.drinkCarbG + short.gelCarbG) * 4}`,
+  );
+  assert.ok(short.kcal < short.totalCarbG * 4, `kcal ${short.kcal} should exclude unmet carbs`);
+});
